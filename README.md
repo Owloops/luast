@@ -176,7 +176,6 @@ Zig is downloaded automatically.
 - No automatic LuaRocks dependency resolution
 - No LuaJIT support
 - No OpenSSL/TLS support
-- No autoconf/cmake build systems
 
 ## Development
 
