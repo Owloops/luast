@@ -5,22 +5,22 @@
 local BUILD_DIR = os.getenv("BUILD_DIR") or ".build"
 local CACHE_DIR = os.getenv("LUAST_CACHE") or (os.getenv("HOME") or os.getenv("USERPROFILE") or ".") .. "/.cache/luast"
 
-local ZIG_VERSION = "0.14.0"
+local ZIG_VERSION = "0.15.2"
 local ZIG_URLS = {
-  ["Linux-x86_64"] = "https://ziglang.org/download/" .. ZIG_VERSION .. "/zig-linux-x86_64-" .. ZIG_VERSION .. ".tar.xz",
+  ["Linux-x86_64"] = "https://ziglang.org/download/" .. ZIG_VERSION .. "/zig-x86_64-linux-" .. ZIG_VERSION .. ".tar.xz",
   ["Linux-aarch64"] = "https://ziglang.org/download/"
     .. ZIG_VERSION
-    .. "/zig-linux-aarch64-"
+    .. "/zig-aarch64-linux-"
     .. ZIG_VERSION
     .. ".tar.xz",
   ["Darwin-x86_64"] = "https://ziglang.org/download/"
     .. ZIG_VERSION
-    .. "/zig-macos-x86_64-"
+    .. "/zig-x86_64-macos-"
     .. ZIG_VERSION
     .. ".tar.xz",
   ["Darwin-arm64"] = "https://ziglang.org/download/"
     .. ZIG_VERSION
-    .. "/zig-macos-aarch64-"
+    .. "/zig-aarch64-macos-"
     .. ZIG_VERSION
     .. ".tar.xz",
 }
@@ -498,21 +498,32 @@ local function build_luajit_for_target(zig_bin, zig_target)
   local target_sys = LUAJIT_TARGET_SYS[zig_target] or "Linux"
   local zig_cc = string.format('"%s" cc -target %s', zig_bin, zig_target)
 
-  -- musl lacks libunwind symbols required by LuaJIT's default DWARF unwinding
+  -- musl/macOS: disable DWARF unwinding (musl lacks libunwind, Zig linker struggles with macOS unwind info)
   local xcflags = ""
-  if zig_target:match("musl") then xcflags = "XCFLAGS+=-DLUAJIT_NO_UNWIND" end
+  if zig_target:match("musl") or zig_target:match("macos") or zig_target:match("darwin") then
+    xcflags = "XCFLAGS+=-DLUAJIT_NO_UNWIND"
+  end
+
+  -- macOS requires MACOSX_DEPLOYMENT_TARGET to be set
+  local env_export = ""
+  if zig_target:match("macos") or zig_target:match("darwin") then
+    env_export = "export MACOSX_DEPLOYMENT_TARGET=11.0 && "
+  end
 
   local make_cmd = string.format(
-    'cd "%s" && make clean && make amalg -j4 '
+    '%scd "%s" && make clean && make amalg -j4 '
       .. 'HOST_CC="%s" '
       .. "STATIC_CC='%s' "
       .. "DYNAMIC_CC='%s -fPIC' "
       .. "TARGET_LD='%s' "
       .. "TARGET_AR='\"%s\" ar rcus' "
+      .. "TARGET_STRIP=@: "
+      .. "TARGET_T=libluajit.a "
       .. "TARGET_SYS=%s "
       .. "BUILDMODE=static "
       .. "%s "
       .. "Q=",
+    env_export,
     target_build_dir,
     host_cc,
     zig_cc,
@@ -748,7 +759,12 @@ local function build_clib_for_target(zig_bin, zig_target, lua_incdir, clib_name)
     return nil, nil
   end
 
-  local target_build_dir = CACHE_DIR .. "/" .. info.name .. "-" .. cache_key(info.name, info.url, zig_target)
+  local lua_runtime = IS_LUAJIT and "luajit" or "lua54"
+  local target_build_dir = CACHE_DIR
+    .. "/"
+    .. info.name
+    .. "-"
+    .. cache_key(info.name, info.url, zig_target, lua_runtime)
   local lib_a = target_build_dir .. "/" .. info.name .. ".a"
 
   if file_exists(lib_a) then
