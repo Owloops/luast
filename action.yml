@@ -19,6 +19,9 @@ inputs:
   lua-version:
     description: 'Lua version to use (default: 5.4.8)'
     required: false
+  clibs:
+    description: 'Space-separated list of C library dependencies (e.g., "lfs lpeg mylib")'
+    required: false
 
 outputs:
   binary:
@@ -65,6 +68,12 @@ runs:
         if [ -n "${{ inputs.targets }}" ]; then
           for target in ${{ inputs.targets }}; do
             ARGS="$ARGS -t $target"
+          done
+        fi
+
+        if [ -n "${{ inputs.clibs }}" ]; then
+          for clib in ${{ inputs.clibs }}; do
+            ARGS="$ARGS -c $clib"
           done
         fi
 
