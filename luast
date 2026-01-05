@@ -176,10 +176,14 @@ local function load_luastrc()
   if not ok or type(result) ~= "table" then return end
 
   for name, info in pairs(result) do
-    if type(info) == "table" and info.url and info.sources then
+    if type(info) == "table" and info.sources then
       info.name = info.name or name
-      info.type = info.type or (info.url:match("%.git$") and "git" or "tarball")
-      info.luaopen = info.luaopen or name
+      info.luaopen = info.luaopen or name:gsub("%.", "_")
+      if info.url then
+        info.type = info.type or (info.url:match("%.git$") and "git" or "tarball")
+      else
+        info.type = "local"
+      end
       CLIB_REGISTRY[name] = info
     end
   end
@@ -686,6 +690,16 @@ local function fetch_clib_source(info)
       os.exit(1)
     end
     execute(string.format('rm -rf "%s" "%s"', tmp_dir, archive))
+  elseif info.type == "local" then
+    mkdir(src_dir)
+    for _, source in ipairs(info.sources) do
+      local src_file = source
+      local dst_file = src_dir .. "/" .. source:match("([^/]+)$")
+      if not execute(string.format('cp "%s" "%s"', src_file, dst_file)) then
+        log("error", "failed to copy " .. src_file)
+        os.exit(1)
+      end
+    end
   end
 
   return src_dir
@@ -760,11 +774,12 @@ local function build_clib_for_target(zig_bin, zig_target, lua_incdir, clib_name)
   end
 
   local lua_runtime = IS_LUAJIT and "luajit" or "lua54"
+  local cache_id = info.url or table.concat(info.sources, ",")
   local target_build_dir = CACHE_DIR
     .. "/"
     .. info.name
     .. "-"
-    .. cache_key(info.name, info.url, zig_target, lua_runtime)
+    .. cache_key(info.name, cache_id, zig_target, lua_runtime)
   local lib_a = target_build_dir .. "/" .. info.name .. ".a"
 
   if file_exists(lib_a) then
@@ -808,13 +823,21 @@ local function build_clib_for_target(zig_bin, zig_target, lua_incdir, clib_name)
   local objects = {}
   local commands = {}
   for _, src in ipairs(all_sources) do
-    local src_path = src_dir .. "/" .. src
+    local src_name = info.type == "local" and src:match("([^/]+)$") or src
+    local src_path = src_dir .. "/" .. src_name
     local obj_name = basename(src):gsub("%.c$", ".o")
     local obj = target_build_dir .. "/" .. obj_name
+    local incdir_flags = ""
+    if info.incdirs then
+      for _, dir in ipairs(info.incdirs) do
+        incdir_flags = incdir_flags .. string.format(' -I"%s"', dir)
+      end
+    end
     local cmd = string.format(
-      '%s -c -O2 -fPIC %s -I"%s" -I"%s" "%s" -o "%s"',
+      '%s -c -O2 -fPIC %s%s -I"%s" -I"%s" "%s" -o "%s"',
       cc,
       define_flags,
+      incdir_flags,
       lua_incdir,
       src_dir,
       src_path,
