@@ -1403,11 +1403,16 @@ local function build_targets_parallel(spec, output_name, targets)
   f:write('pids=""\n')
   f:write("failed=0\n\n")
 
+  local clib_args = ""
+  for _, dep in ipairs(spec.c_deps) do
+    clib_args = clib_args .. string.format(' -c "%s"', dep)
+  end
+
   for _, target in ipairs(targets) do
     local log_file = log_dir .. "/" .. target .. ".log"
     local script = arg[0]
     f:write(string.format("(\n"))
-    f:write(string.format('  "%s" -t %s %s > "%s" 2>&1\n', script, target, output_name, log_file))
+    f:write(string.format('  "%s" -t %s%s %s > "%s" 2>&1\n', script, target, clib_args, output_name, log_file))
     f:write(string.format(") &\n"))
     f:write(string.format('pids="$pids $!"\n\n'))
   end
