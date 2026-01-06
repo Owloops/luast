@@ -1601,6 +1601,17 @@ local function create_standalone_spec(opts)
   }
 end
 
+local function get_local_clibs()
+  local local_clibs = {}
+  for name, info in pairs(CLIB_REGISTRY) do
+    if type(info) == "table" and info.type == "local" then
+      table.insert(local_clibs, name)
+    end
+  end
+  table.sort(local_clibs)
+  return local_clibs
+end
+
 local function main(args)
   setup_colors()
   local opts = parse_args(args)
@@ -1632,6 +1643,23 @@ local function main(args)
       end
     end
     if #added > 0 then log("success", "extra C dependencies: " .. table.concat(added, ", ")) end
+
+    local local_clibs = get_local_clibs()
+    local local_added = {}
+    for _, clib in ipairs(local_clibs) do
+      local found = false
+      for _, existing in ipairs(spec.c_deps) do
+        if existing == clib then
+          found = true
+          break
+        end
+      end
+      if not found then
+        table.insert(spec.c_deps, clib)
+        table.insert(local_added, clib)
+      end
+    end
+    if #local_added > 0 then log("success", "local C libraries: " .. table.concat(local_added, ", ")) end
   end
 
   local output_name = opts.output or spec.name
