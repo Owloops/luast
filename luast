@@ -974,19 +974,26 @@ local function build_openssl_for_target(zig_bin, zig_target)
     log("info", "building OpenSSL " .. OPENSSL_VERSION .. " for " .. zig_target)
     mkdir(build_dir)
 
-    local src_dir = BUILD_DIR .. "/openssl-" .. OPENSSL_VERSION
+    local src_dir = build_dir .. "/src"
     if not dir_exists(src_dir) then
-        local archive = BUILD_DIR .. "/openssl.tar.gz"
-        if not download_file(OPENSSL_URL, archive) then
-            log("error", "failed to download OpenSSL")
+        local base_src = BUILD_DIR .. "/openssl-" .. OPENSSL_VERSION
+        if not dir_exists(base_src) then
+            local archive = BUILD_DIR .. "/openssl.tar.gz"
+            if not download_file(OPENSSL_URL, archive) then
+                log("error", "failed to download OpenSSL")
+                return nil
+            end
+            mkdir(BUILD_DIR)
+            if not execute(string.format('tar -xzf "%s" -C "%s"', archive, BUILD_DIR)) then
+                log("error", "failed to extract OpenSSL")
+                return nil
+            end
+            os.remove(archive)
+        end
+        if not execute(string.format('cp -r "%s" "%s"', base_src, src_dir)) then
+            log("error", "failed to copy OpenSSL source")
             return nil
         end
-        mkdir(BUILD_DIR)
-        if not execute(string.format('tar -xzf "%s" -C "%s"', archive, BUILD_DIR)) then
-            log("error", "failed to extract OpenSSL")
-            return nil
-        end
-        os.remove(archive)
     end
 
     local cc_wrapper = build_dir .. "/zig-cc"
