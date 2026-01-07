@@ -8,20 +8,33 @@ branding:
 
 inputs:
   output:
-    description: 'Output binary name (default: package name from rockspec)'
+    description: 'Output binary name (default: package name from rockspec or main filename)'
+    required: false
+  main:
+    description: 'Main entry point for standalone mode (no rockspec needed)'
     required: false
   rockspec:
     description: 'Path to rockspec file (default: auto-detect)'
     required: false
   targets:
-    description: 'Space-separated list of targets (e.g., "linux-x86_64 linux-arm64 macos-arm64 windows-x86_64")'
+    description: 'Space-separated list of targets (e.g., "linux-x86_64 linux-arm64 darwin-arm64 windows-x86_64")'
     required: false
   lua-version:
-    description: 'Lua version to use (default: 5.4.8)'
+    description: 'Lua version to use (default: 5.4.8, or "jit" for LuaJIT)'
     required: false
   clibs:
-    description: 'Space-separated list of C library dependencies (e.g., "lfs lpeg mylib")'
+    description: 'Space-separated list of C library dependencies (e.g., "lfs lpeg")'
     required: false
+  rocks:
+    description: 'Space-separated list of LuaRocks packages to include (e.g., "inspect penlight")'
+    required: false
+  embeds:
+    description: 'Space-separated list of files/directories to embed (e.g., "templates/ config.json")'
+    required: false
+  quiet:
+    description: 'Only show errors and warnings (default: false)'
+    required: false
+    default: 'false'
 
 outputs:
   binary:
@@ -61,6 +74,14 @@ runs:
 
         ARGS=""
 
+        if [ "${{ inputs.quiet }}" = "true" ]; then
+          ARGS="$ARGS -q"
+        fi
+
+        if [ -n "${{ inputs.main }}" ]; then
+          ARGS="$ARGS -m ${{ inputs.main }}"
+        fi
+
         if [ -n "${{ inputs.rockspec }}" ]; then
           ARGS="$ARGS -r ${{ inputs.rockspec }}"
         fi
@@ -77,6 +98,18 @@ runs:
           done
         fi
 
+        if [ -n "${{ inputs.rocks }}" ]; then
+          for rock in ${{ inputs.rocks }}; do
+            ARGS="$ARGS -R $rock"
+          done
+        fi
+
+        if [ -n "${{ inputs.embeds }}" ]; then
+          for embed in ${{ inputs.embeds }}; do
+            ARGS="$ARGS -e $embed"
+          done
+        fi
+
         if [ -n "${{ inputs.output }}" ]; then
           ARGS="$ARGS ${{ inputs.output }}"
         fi
@@ -85,7 +118,11 @@ runs:
 
         OUTPUT="${{ inputs.output }}"
         if [ -z "$OUTPUT" ]; then
-          OUTPUT=$(ls *.rockspec 2>/dev/null | head -1 | sed 's/-.*$//' || echo "output")
+          if [ -n "${{ inputs.main }}" ]; then
+            OUTPUT=$(basename "${{ inputs.main }}" .lua)
+          else
+            OUTPUT=$(ls *.rockspec 2>/dev/null | head -1 | sed 's/-.*$//' || echo "output")
+          fi
         fi
 
         echo "binary=$OUTPUT" >> $GITHUB_OUTPUT

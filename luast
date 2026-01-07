@@ -7,35 +7,39 @@ local CACHE_DIR = os.getenv("LUAST_CACHE") or (os.getenv("HOME") or os.getenv("U
 
 local ZIG_VERSION = "0.15.2"
 local ZIG_URLS = {
-  ["Linux-x86_64"] = "https://ziglang.org/download/" .. ZIG_VERSION .. "/zig-x86_64-linux-" .. ZIG_VERSION .. ".tar.xz",
-  ["Linux-aarch64"] = "https://ziglang.org/download/"
-    .. ZIG_VERSION
-    .. "/zig-aarch64-linux-"
-    .. ZIG_VERSION
-    .. ".tar.xz",
-  ["Darwin-x86_64"] = "https://ziglang.org/download/"
-    .. ZIG_VERSION
-    .. "/zig-x86_64-macos-"
-    .. ZIG_VERSION
-    .. ".tar.xz",
-  ["Darwin-arm64"] = "https://ziglang.org/download/"
-    .. ZIG_VERSION
-    .. "/zig-aarch64-macos-"
-    .. ZIG_VERSION
-    .. ".tar.xz",
+    ["Linux-x86_64"] = "https://ziglang.org/download/"
+        .. ZIG_VERSION
+        .. "/zig-x86_64-linux-"
+        .. ZIG_VERSION
+        .. ".tar.xz",
+    ["Linux-aarch64"] = "https://ziglang.org/download/"
+        .. ZIG_VERSION
+        .. "/zig-aarch64-linux-"
+        .. ZIG_VERSION
+        .. ".tar.xz",
+    ["Darwin-x86_64"] = "https://ziglang.org/download/"
+        .. ZIG_VERSION
+        .. "/zig-x86_64-macos-"
+        .. ZIG_VERSION
+        .. ".tar.xz",
+    ["Darwin-arm64"] = "https://ziglang.org/download/"
+        .. ZIG_VERSION
+        .. "/zig-aarch64-macos-"
+        .. ZIG_VERSION
+        .. ".tar.xz",
 }
 
 local TARGET_MAP = {
-  ["linux-x86_64"] = "x86_64-linux-musl",
-  ["linux-arm64"] = "aarch64-linux-musl",
-  ["linux-aarch64"] = "aarch64-linux-musl",
-  ["macos-x86_64"] = "x86_64-macos",
-  ["macos-arm64"] = "aarch64-macos",
-  ["darwin-x86_64"] = "x86_64-macos",
-  ["darwin-arm64"] = "aarch64-macos",
-  ["darwin-aarch64"] = "aarch64-macos",
-  ["windows-x86_64"] = "x86_64-windows-gnu",
-  ["windows-arm64"] = "aarch64-windows-gnu",
+    ["linux-x86_64"] = "x86_64-linux-musl",
+    ["linux-arm64"] = "aarch64-linux-musl",
+    ["linux-aarch64"] = "aarch64-linux-musl",
+    ["macos-x86_64"] = "x86_64-macos",
+    ["macos-arm64"] = "aarch64-macos",
+    ["darwin-x86_64"] = "x86_64-macos",
+    ["darwin-arm64"] = "aarch64-macos",
+    ["darwin-aarch64"] = "aarch64-macos",
+    ["windows-x86_64"] = "x86_64-windows-gnu",
+    ["windows-arm64"] = "aarch64-windows-gnu",
 }
 
 local LUA_VERSION = os.getenv("LUA_VERSION") or "5.4.8"
@@ -46,278 +50,597 @@ local LUAJIT_BRANCH = "v2.1"
 local LUA_URL = "https://www.lua.org/ftp/lua-" .. LUA_VERSION .. ".tar.gz"
 
 local LUAJIT_TARGET_SYS = {
-  ["x86_64-linux-musl"] = "Linux",
-  ["aarch64-linux-musl"] = "Linux",
-  ["x86_64-macos"] = "Darwin",
-  ["aarch64-macos"] = "Darwin",
-  ["x86_64-windows-gnu"] = "Windows",
-  ["aarch64-windows-gnu"] = "Windows",
+    ["x86_64-linux-musl"] = "Linux",
+    ["aarch64-linux-musl"] = "Linux",
+    ["x86_64-macos"] = "Darwin",
+    ["aarch64-macos"] = "Darwin",
+    ["x86_64-windows-gnu"] = "Windows",
+    ["aarch64-windows-gnu"] = "Windows",
 }
 
 local LUA_CORE_FILES = {
-  "lapi.c",
-  "lcode.c",
-  "lctype.c",
-  "ldebug.c",
-  "ldo.c",
-  "ldump.c",
-  "lfunc.c",
-  "lgc.c",
-  "llex.c",
-  "lmem.c",
-  "lobject.c",
-  "lopcodes.c",
-  "lparser.c",
-  "lstate.c",
-  "lstring.c",
-  "ltable.c",
-  "ltm.c",
-  "lundump.c",
-  "lvm.c",
-  "lzio.c",
-  "lauxlib.c",
-  "lbaselib.c",
-  "lcorolib.c",
-  "ldblib.c",
-  "liolib.c",
-  "lmathlib.c",
-  "loadlib.c",
-  "loslib.c",
-  "lstrlib.c",
-  "ltablib.c",
-  "lutf8lib.c",
-  "linit.c",
+    "lapi.c",
+    "lcode.c",
+    "lctype.c",
+    "ldebug.c",
+    "ldo.c",
+    "ldump.c",
+    "lfunc.c",
+    "lgc.c",
+    "llex.c",
+    "lmem.c",
+    "lobject.c",
+    "lopcodes.c",
+    "lparser.c",
+    "lstate.c",
+    "lstring.c",
+    "ltable.c",
+    "ltm.c",
+    "lundump.c",
+    "lvm.c",
+    "lzio.c",
+    "lauxlib.c",
+    "lbaselib.c",
+    "lcorolib.c",
+    "ldblib.c",
+    "liolib.c",
+    "lmathlib.c",
+    "loadlib.c",
+    "loslib.c",
+    "lstrlib.c",
+    "ltablib.c",
+    "lutf8lib.c",
+    "linit.c",
+}
+
+local OPENSSL_VERSION = "3.4.0"
+local OPENSSL_URL = "https://github.com/openssl/openssl/releases/download/openssl-"
+    .. OPENSSL_VERSION
+    .. "/openssl-"
+    .. OPENSSL_VERSION
+    .. ".tar.gz"
+
+local OPENSSL_TARGET_MAP = {
+    ["x86_64-linux-musl"] = "linux-x86_64",
+    ["x86_64-linux-gnu"] = "linux-x86_64",
+    ["aarch64-linux-musl"] = "linux-aarch64",
+    ["aarch64-linux-gnu"] = "linux-aarch64",
+    ["x86_64-macos"] = "darwin64-x86_64-cc",
+    ["aarch64-macos"] = "darwin64-arm64-cc",
+    ["x86_64-windows-gnu"] = "mingw64",
 }
 
 local CLIB_REGISTRY = {
-  luafilesystem = {
-    name = "lfs",
-    url = "https://github.com/lunarmodules/luafilesystem.git",
-    type = "git",
-    sources = { "src/lfs.c" },
-    luaopen = "lfs",
-  },
-  lfs = "luafilesystem",
-  lpeg = {
-    name = "lpeg",
-    url = "http://www.inf.puc-rio.br/~roberto/lpeg/lpeg-1.1.0.tar.gz",
-    type = "tarball",
-    sources = { "lpcap.c", "lpcode.c", "lpcset.c", "lptree.c", "lpvm.c", "lpprint.c" },
-    luaopen = "lpeg",
-  },
-  ["lua-cjson"] = {
-    name = "cjson",
-    url = "https://github.com/openresty/lua-cjson.git",
-    type = "git",
-    sources = { "lua_cjson.c", "strbuf.c", "fpconv.c" },
-    luaopen = "cjson",
-  },
-  cjson = "lua-cjson",
-  lsqlite3complete = {
-    name = "lsqlite3",
-    url = "http://lua.sqlite.org/home/zip/lsqlite3_v096.zip?uuid=v0.9.6",
-    type = "zip",
-    sources = { "lsqlite3.c", "sqlite3.c" },
-    luaopen = "lsqlite3",
-    modname = "lsqlite3complete",
-    defines = { 'LSQLITE_VERSION=\\"0.9.6\\"' },
-  },
-  lsqlite3 = "lsqlite3complete",
-  luasocket = {
-    name = "socket",
-    url = "https://github.com/lunarmodules/luasocket.git",
-    type = "git",
-    sources = {
-      "src/luasocket.c",
-      "src/timeout.c",
-      "src/buffer.c",
-      "src/io.c",
-      "src/auxiliar.c",
-      "src/options.c",
-      "src/inet.c",
-      "src/except.c",
-      "src/select.c",
-      "src/tcp.c",
-      "src/udp.c",
-      "src/compat.c",
+    luafilesystem = {
+        name = "lfs",
+        url = "https://github.com/lunarmodules/luafilesystem.git",
+        type = "git",
+        sources = { "src/lfs.c" },
+        luaopen = "lfs",
     },
-    sources_unix = { "src/usocket.c" },
-    sources_windows = { "src/wsocket.c" },
-    luaopen = "socket_core",
-    modname = "socket.core",
-    defines = { "LUASOCKET_API=" },
-    lua_files = { "src/socket.lua", "src/ltn12.lua", "src/mime.lua" },
-  },
-  socket = "luasocket",
-  ["socket.core"] = "luasocket",
-  ["luasocket.mime"] = {
-    name = "mime",
-    url = "https://github.com/lunarmodules/luasocket.git",
-    type = "git",
-    sources = { "src/mime.c", "src/compat.c" },
-    luaopen = "mime_core",
-    modname = "mime.core",
-    defines = { "LUASOCKET_API=", "MIME_API=" },
-  },
-  mime = "luasocket.mime",
-  ["mime.core"] = "luasocket.mime",
+    lfs = "luafilesystem",
+    lpeg = {
+        name = "lpeg",
+        url = "http://www.inf.puc-rio.br/~roberto/lpeg/lpeg-1.1.0.tar.gz",
+        type = "tarball",
+        sources = { "lpcap.c", "lpcode.c", "lpcset.c", "lptree.c", "lpvm.c", "lpprint.c" },
+        luaopen = "lpeg",
+    },
+    ["lua-cjson"] = {
+        name = "cjson",
+        url = "https://github.com/openresty/lua-cjson.git",
+        type = "git",
+        sources = { "lua_cjson.c", "strbuf.c", "fpconv.c" },
+        luaopen = "cjson",
+    },
+    cjson = "lua-cjson",
+    lsqlite3complete = {
+        name = "lsqlite3",
+        url = "http://lua.sqlite.org/home/zip/lsqlite3_v096.zip?uuid=v0.9.6",
+        type = "zip",
+        sources = { "lsqlite3.c", "sqlite3.c" },
+        luaopen = "lsqlite3",
+        modname = "lsqlite3complete",
+        defines = { 'LSQLITE_VERSION=\\"0.9.6\\"' },
+    },
+    lsqlite3 = "lsqlite3complete",
+    luasocket = {
+        name = "socket",
+        url = "https://github.com/lunarmodules/luasocket.git",
+        type = "git",
+        sources = {
+            "src/luasocket.c",
+            "src/timeout.c",
+            "src/buffer.c",
+            "src/io.c",
+            "src/auxiliar.c",
+            "src/options.c",
+            "src/inet.c",
+            "src/except.c",
+            "src/select.c",
+            "src/tcp.c",
+            "src/udp.c",
+            "src/compat.c",
+        },
+        sources_unix = { "src/usocket.c" },
+        sources_windows = { "src/wsocket.c" },
+        luaopen = "socket_core",
+        modname = "socket.core",
+        defines = { "LUASOCKET_API=" },
+        lua_files = {
+            { path = "src/socket.lua", modname = "socket" },
+            { path = "src/ltn12.lua", modname = "ltn12" },
+            { path = "src/mime.lua", modname = "mime" },
+            { path = "src/http.lua", modname = "socket.http" },
+            { path = "src/smtp.lua", modname = "socket.smtp" },
+            { path = "src/tp.lua", modname = "socket.tp" },
+            { path = "src/url.lua", modname = "socket.url" },
+            { path = "src/headers.lua", modname = "socket.headers" },
+        },
+    },
+    socket = "luasocket",
+    ["socket.core"] = "luasocket",
+    ["luasocket.mime"] = {
+        name = "mime",
+        url = "https://github.com/lunarmodules/luasocket.git",
+        type = "git",
+        sources = { "src/mime.c", "src/compat.c" },
+        luaopen = "mime_core",
+        modname = "mime.core",
+        defines = { "LUASOCKET_API=", "MIME_API=" },
+    },
+    mime = "luasocket.mime",
+    ["mime.core"] = "luasocket.mime",
+    luasec = {
+        name = "ssl",
+        url = "https://github.com/lunarmodules/luasec.git",
+        type = "git",
+        sources = {
+            "src/config.c",
+            "src/context.c",
+            "src/ec.c",
+            "src/options.c",
+            "src/ssl.c",
+            "src/x509.c",
+        },
+        luaopen = "ssl_core",
+        modname = "ssl.core",
+        extra_luaopens = {
+            { luaopen = "ssl_context", modname = "ssl.context" },
+            { luaopen = "ssl_x509", modname = "ssl.x509" },
+            { luaopen = "ssl_config", modname = "ssl.config" },
+        },
+        requires_openssl = true,
+        incdirs_relative = { "src" },
+        lua_files = {
+            { path = "src/ssl.lua", modname = "ssl" },
+            { path = "src/https.lua", modname = "ssl.https" },
+        },
+    },
+    ssl = "luasec",
+    ["ssl.core"] = "luasec",
+    ["ssl.https"] = "luasec",
+    luaossl = {
+        name = "openssl",
+        url = "https://github.com/wahern/luaossl/archive/rel-20250929.tar.gz",
+        type = "tarball",
+        sources = { "src/openssl.c" },
+        auto_luaopens = true,
+        auto_lua_files = true,
+        lua_files_prefix = "openssl",
+        requires_openssl = true,
+    },
+    ["_openssl"] = "luaossl",
+    openssl = "luaossl",
 }
 
+-- config --
+
 local function load_luastrc()
-  local path = ".luastrc"
-  local f = io.open(path, "r")
-  if not f then return end
-  f:close()
+    local path = ".luastrc"
+    local f = io.open(path, "r")
+    if not f then return end
+    f:close()
 
-  local chunk, _err = loadfile(path, "t", {})
-  if not chunk then return end
+    local chunk, _err = loadfile(path, "t", {})
+    if not chunk then return end
 
-  local ok, result = pcall(chunk)
-  if not ok or type(result) ~= "table" then return end
+    local ok, result = pcall(chunk)
+    if not ok or type(result) ~= "table" then return end
 
-  for name, info in pairs(result) do
-    if type(info) == "table" and info.sources then
-      info.name = info.name or name
-      info.luaopen = info.luaopen or name:gsub("%.", "_")
-      if info.url then
-        info.type = info.type or (info.url:match("%.git$") and "git" or "tarball")
-      else
-        info.type = "local"
-      end
-      CLIB_REGISTRY[name] = info
+    for name, info in pairs(result) do
+        if type(info) == "table" and info.sources then
+            info.name = info.name or name
+            info.luaopen = info.luaopen or name:gsub("%.", "_")
+            if info.url then
+                info.type = info.type or (info.url:match("%.git$") and "git" or "tarball")
+            else
+                info.type = "local"
+            end
+            CLIB_REGISTRY[name] = info
+        end
     end
-  end
 end
 
 load_luastrc()
 
-local colors = { red = "", green = "", yellow = "", blue = "", bold = "", reset = "" }
+-- helpers --
 
--- utilities --
+local colors = { red = "", green = "", yellow = "", blue = "", bold = "", reset = "" }
+local log_level = 1
+
+local function list_contains(list, item)
+    for _, v in ipairs(list) do
+        if v == item then return true end
+    end
+    return false
+end
 
 local function execute(cmd)
-  local ok = os.execute(cmd)
-  return ok == true or ok == 0
+    local ok = os.execute(cmd)
+    return ok == true or ok == 0
 end
 
 local function shellout(command)
-  local handle = io.popen(command .. " 2>/dev/null")
-  if not handle then return "" end
-  local stdout = handle:read("*a")
-  handle:close()
-  return stdout and stdout:gsub("%s+$", "") or ""
+    local handle = io.popen(command .. " 2>/dev/null")
+    if not handle then return "" end
+    local stdout = handle:read("*a")
+    handle:close()
+    return stdout and stdout:gsub("%s+$", "") or ""
 end
 
 local function file_exists(path)
-  local f = io.open(path, "r")
-  if f then
-    f:close()
-    return true
-  end
-  return false
+    local f = io.open(path, "r")
+    if f then
+        f:close()
+        return true
+    end
+    return false
 end
 
 local function dir_exists(path)
-  local ok, _, code = os.rename(path .. "/", path .. "/")
-  return ok or code == 13
+    local ok, _, code = os.rename(path .. "/", path .. "/")
+    return ok or code == 13
 end
 
 local function mkdir(path)
-  local sep = package.config:sub(1, 1)
-  local cmd = sep == "\\" and 'mkdir "' .. path .. '" 2>nul' or 'mkdir -p "' .. path .. '"'
-  os.execute(cmd)
+    local sep = package.config:sub(1, 1)
+    local cmd = sep == "\\" and 'mkdir "' .. path .. '" 2>nul' or 'mkdir -p "' .. path .. '"'
+    os.execute(cmd)
 end
 
 local function glob(pattern)
-  local sep = package.config:sub(1, 1)
-  local cmd = sep == "\\" and 'dir /b "' .. pattern .. '" 2>nul' or "ls -1 " .. pattern .. " 2>/dev/null"
-  local handle = io.popen(cmd)
-  if not handle then return {} end
-  local files = {}
-  for line in handle:lines() do
-    table.insert(files, line)
-  end
-  handle:close()
-  return files
+    local handle = io.popen("ls -1 " .. pattern .. " 2>/dev/null")
+    if not handle then return {} end
+    local files = {}
+    for line in handle:lines() do
+        table.insert(files, line)
+    end
+    handle:close()
+    return files
 end
 
 local function basename(path)
-  return path:gsub([[(.*[\/])(.*)]], "%2")
+    return path:gsub([[(.*[\/])(.*)]], "%2")
+end
+
+local function discover_luaopens(lib_a, lua_modules)
+    local results = {}
+    local handle = io.popen(string.format('nm "%s" 2>/dev/null | grep " T luaopen_"', lib_a))
+    if not handle then return results end
+
+    local expected_c_modules = {}
+    if lua_modules then
+        for _, lua_mod in ipairs(lua_modules) do
+            local c_modname = "_" .. lua_mod.modname
+            local c_symbol = c_modname:gsub("%.", "_")
+            expected_c_modules[c_symbol] = c_modname
+        end
+    end
+
+    for line in handle:lines() do
+        local symbol = line:match("T (luaopen_[%w_]+)")
+        if symbol then
+            local func_name = symbol:sub(9)
+            local modname
+
+            if expected_c_modules[func_name] then
+                modname = expected_c_modules[func_name]
+            elseif func_name:sub(1, 1) == "_" then
+                local base = func_name:match("^(_[^_]+)")
+                local rest = func_name:sub(#base + 1)
+                modname = base .. rest:gsub("_", ".")
+            else
+                modname = func_name:gsub("_", ".")
+            end
+            results[#results + 1] = { luaopen = func_name, modname = modname }
+        end
+    end
+    handle:close()
+    return results
+end
+
+local function discover_lua_files(src_dir, patterns, prefix)
+    patterns = patterns or { "src/*.lua", "src/**/*.lua" }
+    local results = {}
+    local seen = {}
+    for _, pattern in ipairs(patterns) do
+        for _, path in ipairs(glob(src_dir .. "/" .. pattern)) do
+            if not seen[path] then
+                seen[path] = true
+                local relpath = path:sub(#src_dir + 2)
+                local modname = relpath:gsub("^src/", ""):gsub("%.lua$", ""):gsub("/", "."):gsub("%.init$", "")
+                if prefix and modname ~= prefix and not modname:match("^" .. prefix .. "%.") then
+                    modname = prefix .. "." .. modname
+                end
+                results[#results + 1] = { path = relpath, modname = modname }
+            end
+        end
+    end
+    table.sort(results, function(a, b)
+        return a.modname < b.modname
+    end)
+    return results
 end
 
 local function download_file(url, dest)
-  if execute("which curl >/dev/null 2>&1") then
-    return execute(string.format('curl -fsSL "%s" -o "%s"', url, dest))
-  elseif execute("which wget >/dev/null 2>&1") then
-    return execute(string.format('wget -q "%s" -O "%s"', url, dest))
-  end
-  return false
+    return execute(string.format('curl -fsSL "%s" -o "%s" || wget -q "%s" -O "%s"', url, dest, url, dest))
 end
 
-local function hash_string(str)
-  local hash = 5381
-  for i = 1, #str do
-    hash = ((hash * 33) + str:byte(i)) % 0x100000000
-  end
-  return string.format("%08x", hash)
+local function check_system_deps(spec)
+    local missing = {}
+
+    if not execute("which git >/dev/null 2>&1") then table.insert(missing, "git") end
+    if not execute("which tar >/dev/null 2>&1") then table.insert(missing, "tar") end
+    if not execute("which curl >/dev/null 2>&1 || which wget >/dev/null 2>&1") then
+        table.insert(missing, "curl or wget")
+    end
+
+    if IS_LUAJIT then
+        if not execute("which make >/dev/null 2>&1") then table.insert(missing, "make (required for LuaJIT)") end
+        local has_gcc = execute("which gcc >/dev/null 2>&1")
+        local has_clang = execute("which clang >/dev/null 2>&1")
+        if not has_gcc and not has_clang then table.insert(missing, "gcc or clang (required for LuaJIT)") end
+    end
+
+    if #missing > 0 then
+        log("error", "missing required tools: " .. table.concat(missing, ", "))
+        os.exit(1)
+    end
 end
 
 local function cache_key(...)
-  local parts = { ... }
-  return hash_string(table.concat(parts, "|")):sub(1, 8)
+    local str = table.concat({ ... }, "|")
+    local hash = 5381
+    for i = 1, #str do
+        hash = ((hash * 33) + str:byte(i)) % 0x100000000
+    end
+    return string.format("%08x", hash)
 end
 
 local function setup_colors()
-  local force = os.getenv("FORCE_COLOR")
-  local no_color = os.getenv("NO_COLOR")
-  local term = os.getenv("TERM")
-
-  local use_color = false
-  if force and force ~= "" then
-    use_color = true
-  elseif no_color and no_color ~= "" then
-    use_color = false
-  elseif term and term ~= "dumb" then
-    use_color = true
-  end
-
-  if use_color then
-    colors.red = "\27[31m"
-    colors.green = "\27[32m"
-    colors.yellow = "\27[33m"
-    colors.blue = "\27[34m"
-    colors.bold = "\27[1m"
-    colors.reset = "\27[0m"
-  end
+    local force = os.getenv("FORCE_COLOR")
+    local no_color = os.getenv("NO_COLOR")
+    local term = os.getenv("TERM")
+    local use_color = false
+    if force and force ~= "" then
+        use_color = true
+    elseif no_color and no_color ~= "" then
+        use_color = false
+    elseif term and term ~= "dumb" then
+        use_color = true
+    end
+    if use_color then
+        colors.red = "\27[31m"
+        colors.green = "\27[32m"
+        colors.yellow = "\27[33m"
+        colors.blue = "\27[34m"
+        colors.bold = "\27[1m"
+        colors.reset = "\27[0m"
+    end
 end
-
-local log_level = 1
 
 local function log(level, msg)
-  local priority = ({ error = 0, warn = 0, success = 1, info = 2 })[level] or 1
-  if priority > log_level then return end
-
-  local color = ({
-    info = colors.blue,
-    success = colors.green,
-    warn = colors.yellow,
-    error = colors.red,
-  })[level] or ""
-
-  local out = string.format("%s[%s]%s %s\n", color, level, colors.reset, msg)
-  if level == "error" then
-    io.stderr:write(out)
-  else
-    io.write(out)
-  end
+    local priority = ({ error = 0, warn = 0, success = 1, info = 2 })[level] or 1
+    if priority > log_level then return end
+    local color = ({
+        info = colors.blue,
+        success = colors.green,
+        warn = colors.yellow,
+        error = colors.red,
+    })[level] or ""
+    local out = string.format("%s[%s]%s %s\n", color, level, colors.reset, msg)
+    if level == "error" then
+        io.stderr:write(out)
+    else
+        io.write(out)
+    end
 end
 
+-- luarocks --
+
+local function get_luarocks_trees()
+    local trees = {}
+    local seen = {}
+    local handle = io.popen("luarocks path --lr-path 2>/dev/null")
+    if handle then
+        local path = handle:read("*a")
+        handle:close()
+        for dir in path:gmatch("([^;]+)") do
+            local base = dir:gsub("/[?].*$", "")
+            if not seen[base] then
+                seen[base] = true
+                trees[#trees + 1] = base
+            end
+        end
+    end
+    return trees
+end
+
+local function find_rockspec_installed(name)
+    local handle = io.popen(string.format('luarocks show "%s" --rockspec 2>/dev/null', name))
+    if handle then
+        local path = handle:read("*l")
+        handle:close()
+        if path and file_exists(path) then return path end
+    end
+    return nil
+end
+
+local function find_local_rockspec(specified)
+    if specified then
+        if not file_exists(specified) then
+            log("error", "rockspec not found: " .. specified)
+            os.exit(1)
+        end
+        return specified
+    end
+    local files = glob("*.rockspec")
+    if #files == 0 then return nil end
+    log("success", "found rockspec: " .. files[1])
+    return files[1]
+end
+
+local function resolve_clib(name)
+    local info = CLIB_REGISTRY[name:lower()]
+    if type(info) == "string" then info = CLIB_REGISTRY[info] end
+    return info
+end
+
+local function parse_dependency(dep_str)
+    local name = dep_str:match("^([%w_-]+)")
+    return name and name:lower() or nil
+end
+
+local function parse_local_rockspec(path)
+    log("info", "parsing rockspec")
+    local env = {}
+    local chunk, err = loadfile(path, "t", env)
+    if not chunk then
+        log("error", "failed to load rockspec: " .. err)
+        os.exit(1)
+    end
+    chunk()
+
+    local package_name = env.package
+    if not package_name then
+        log("error", "cannot find package name in rockspec")
+        os.exit(1)
+    end
+
+    local bin_script
+    if env.build and env.build.install and env.build.install.bin then
+        for _, script in pairs(env.build.install.bin) do
+            bin_script = script
+            break
+        end
+    end
+
+    if not bin_script or not file_exists(bin_script) then
+        log("error", "cannot find bin script in rockspec")
+        os.exit(1)
+    end
+
+    local module_files = {}
+    if env.build and env.build.modules then
+        for _, file in pairs(env.build.modules) do
+            if type(file) == "string" and file:match("%.lua$") then table.insert(module_files, file) end
+        end
+    end
+    table.sort(module_files)
+
+    local c_deps = {}
+    if env.dependencies then
+        for _, dep in ipairs(env.dependencies) do
+            local name = parse_dependency(dep)
+            if name and name ~= "lua" and resolve_clib(name) then table.insert(c_deps, name) end
+        end
+    end
+
+    log("success", "package: " .. package_name)
+    log("success", "bin script: " .. bin_script)
+    log("success", "modules: " .. #module_files .. " files")
+    if #c_deps > 0 then log("success", "C dependencies: " .. table.concat(c_deps, ", ")) end
+
+    return {
+        name = package_name,
+        bin = bin_script,
+        modules = module_files,
+        c_deps = c_deps,
+    }
+end
+
+local function parse_rockspec(path)
+    local env = {}
+    local chunk, err = loadfile(path, "t", env)
+    if not chunk then return nil, err end
+    chunk()
+    return env
+end
+
+local function get_rock_lua_files(name, trees)
+    local files = {}
+    for _, tree in ipairs(trees) do
+        local patterns = {
+            tree .. "/" .. name .. ".lua",
+            tree .. "/" .. name .. "/*.lua",
+            tree .. "/" .. name .. "/**/*.lua",
+        }
+        for _, pattern in ipairs(patterns) do
+            for _, path in ipairs(glob(pattern)) do
+                local relpath = path:sub(#tree + 2)
+                local modname = relpath:gsub("%.lua$", ""):gsub("/", "."):gsub("%.init$", "")
+                files[#files + 1] = { path = path, modname = modname }
+            end
+        end
+    end
+    return files
+end
+
+local function resolve_rock_deps(name, resolved, pending)
+    resolved = resolved or {}
+    pending = pending or {}
+    if resolved[name] or pending[name] then return resolved end
+    pending[name] = true
+
+    local rockspec_path = find_rockspec_installed(name)
+    if not rockspec_path then
+        log("warn", "rock not found: " .. name)
+        pending[name] = nil
+        return resolved
+    end
+
+    local spec = parse_rockspec(rockspec_path)
+    if not spec then
+        pending[name] = nil
+        return resolved
+    end
+
+    if spec.dependencies then
+        for _, dep in ipairs(spec.dependencies) do
+            local dep_name = dep:match("^([%w_%-]+)")
+            if dep_name and dep_name ~= "lua" then resolve_rock_deps(dep_name, resolved, pending) end
+        end
+    end
+
+    resolved[name] = {
+        name = name,
+        rockspec = rockspec_path,
+        spec = spec,
+    }
+    pending[name] = nil
+    return resolved
+end
+
+-- cli --
+
 local function show_help()
-  print(string.format(
-    [[
-%sluast%s - build static Lua binaries
+    print(string.format(
+        [[
+%sluast%s - build static Lua binaries with LuaRocks integration
 
 Build standalone static binaries from LuaRocks projects using Zig.
+Automatically resolves dependencies from installed LuaRocks packages.
 
 Usage: luast [options] [modules...] [output-name]
 
@@ -332,6 +655,7 @@ Options:
     -m, --main      Main entry point (standalone mode, no rockspec needed)
     -c, --clib      C library dependency (can be repeated: -c lfs -c lpeg)
     -e, --embed     Embed data file/directory (can be repeated: -e assets/)
+    -R, --rock      LuaRocks package to include (can be repeated: -R http)
     -r, --rockspec  Path to rockspec file (default: auto-detect)
     -t, --target    Target platform (default: native, can be repeated)
                     Available: linux-x86_64, linux-arm64
@@ -341,7 +665,19 @@ Options:
 Environment:
     BUILD_DIR       Build directory (default: .build)
     LUAST_CACHE     Cache directory for zig/lua (default: ~/.cache/luast)
-    LUA_VERSION     Lua version to build (default: 5.4.8)
+    LUA_VERSION     Lua version to build (default: 5.4.8, or "jit" for LuaJIT)
+
+Examples:
+    luast myapp
+    luast -t linux-x86_64 -t darwin-arm64 myapp
+    luast -m app.lua -c lfs myapp
+    luast -m app.lua -R inspect myapp
+    luast -m app.lua -R inspect -R penlight myapp
+    LUA_VERSION=jit luast -m app.lua myapp  # Build with LuaJIT
+
+C Libraries (built-in):
+    luafilesystem, lpeg, lua-cjson, lsqlite3complete, luasocket,
+    luasec (with OpenSSL), luaossl (with OpenSSL)
 
 Config file (.luastrc):
     Define custom C libraries:
@@ -351,656 +687,758 @@ Config file (.luastrc):
                 sources = { "src/mylib.c" },
             },
         }
-
-Examples:
-    luast myapp
-    luast -t linux-x86_64 -t darwin-arm64 myapp
-    luast -m app.lua -c lfs myapp
-    luast -m app.lua -e templates/ myapp
 ]],
-    colors.bold,
-    colors.reset
-  ))
+        colors.bold,
+        colors.reset
+    ))
 end
 
--- zig --
-
 local function get_host_key()
-  local os_name = shellout("uname -s")
-  local arch = shellout("uname -m")
-  if arch == "arm64" then arch = "aarch64" end
-  return os_name .. "-" .. arch
+    local os_name = shellout("uname -s")
+    local arch = shellout("uname -m")
+    if arch == "arm64" then arch = "aarch64" end
+    return os_name .. "-" .. arch
 end
 
 local function get_native_target()
-  local os_name = shellout("uname -s"):lower()
-  local arch = shellout("uname -m")
-  if arch == "arm64" then arch = "aarch64" end
-  local key = os_name .. "-" .. arch
-  if not TARGET_MAP[key] then
-    log("error", "unsupported platform: " .. key)
-    os.exit(1)
-  end
-  return key
+    local os_name = shellout("uname -s"):lower()
+    local arch = shellout("uname -m")
+    if arch == "arm64" then arch = "aarch64" end
+    local key = os_name .. "-" .. arch
+    if not TARGET_MAP[key] then
+        log("error", "unsupported platform: " .. key)
+        os.exit(1)
+    end
+    return key
 end
 
+-- build --
+
 local function ensure_zig()
-  local zig_dir = CACHE_DIR .. "/zig-" .. ZIG_VERSION
-  local zig_bin = zig_dir .. "/zig"
+    local zig_dir = CACHE_DIR .. "/zig-" .. ZIG_VERSION
+    local zig_bin = zig_dir .. "/zig"
+    if file_exists(zig_bin) then return zig_bin end
 
-  if file_exists(zig_bin) then return zig_bin end
+    local host_key = get_host_key()
+    local url = ZIG_URLS[host_key]
+    if not url then
+        log("error", "no zig download available for " .. host_key)
+        os.exit(1)
+    end
 
-  local host_key = get_host_key()
-  local url = ZIG_URLS[host_key]
-  if not url then
-    log("error", "no zig download available for " .. host_key)
-    os.exit(1)
-  end
+    log("info", "downloading zig " .. ZIG_VERSION .. " for " .. host_key)
+    mkdir(CACHE_DIR)
 
-  log("info", "downloading zig " .. ZIG_VERSION .. " for " .. host_key)
-  mkdir(CACHE_DIR)
+    local archive = CACHE_DIR .. "/zig.tar.xz"
+    if not download_file(url, archive) then
+        log("error", "failed to download zig")
+        os.exit(1)
+    end
 
-  local archive = CACHE_DIR .. "/zig.tar.xz"
-  if not download_file(url, archive) then
-    log("error", "failed to download zig")
-    os.exit(1)
-  end
+    log("info", "extracting zig")
+    local extract_dir = CACHE_DIR .. "/zig-extract"
+    mkdir(extract_dir)
+    if not execute(string.format('tar -xf "%s" -C "%s"', archive, extract_dir)) then
+        log("error", "failed to extract zig")
+        os.exit(1)
+    end
 
-  log("info", "extracting zig")
-  local extract_dir = CACHE_DIR .. "/zig-extract"
-  mkdir(extract_dir)
-  if not execute(string.format('tar -xf "%s" -C "%s"', archive, extract_dir)) then
-    log("error", "failed to extract zig")
-    os.exit(1)
-  end
+    local extracted = shellout(string.format('ls "%s" | head -1', extract_dir))
+    if not execute(string.format('mv "%s/%s" "%s"', extract_dir, extracted, zig_dir)) then
+        log("error", "failed to move zig directory")
+        os.exit(1)
+    end
 
-  local extracted = shellout(string.format('ls "%s" | head -1', extract_dir))
-  if not execute(string.format('mv "%s/%s" "%s"', extract_dir, extracted, zig_dir)) then
-    log("error", "failed to move zig directory")
-    os.exit(1)
-  end
-
-  execute(string.format('rm -rf "%s" "%s"', archive, extract_dir))
-
-  log("success", "zig installed to " .. zig_dir)
-  return zig_bin
+    execute(string.format('rm -rf "%s" "%s"', archive, extract_dir))
+    log("success", "zig installed to " .. zig_dir)
+    return zig_bin
 end
 
 local function ensure_lua_source()
-  local lua_dir = CACHE_DIR .. "/lua-" .. LUA_VERSION
-  local lua_src = lua_dir .. "/src"
+    local lua_dir = CACHE_DIR .. "/lua-" .. LUA_VERSION
+    local lua_src = lua_dir .. "/src"
+    if dir_exists(lua_src) then return lua_dir end
 
-  if dir_exists(lua_src) then return lua_dir end
+    log("info", "downloading lua " .. LUA_VERSION)
+    mkdir(CACHE_DIR)
 
-  log("info", "downloading lua " .. LUA_VERSION)
-  mkdir(CACHE_DIR)
+    local archive = CACHE_DIR .. "/lua.tar.gz"
+    if not download_file(LUA_URL, archive) then
+        log("error", "failed to download lua")
+        os.exit(1)
+    end
 
-  local archive = CACHE_DIR .. "/lua.tar.gz"
-  if not download_file(LUA_URL, archive) then
-    log("error", "failed to download lua")
-    os.exit(1)
-  end
+    if not execute(string.format('tar -xzf "%s" -C "%s"', archive, CACHE_DIR)) then
+        log("error", "failed to extract lua")
+        os.exit(1)
+    end
 
-  if not execute(string.format('tar -xzf "%s" -C "%s"', archive, CACHE_DIR)) then
-    log("error", "failed to extract lua")
-    os.exit(1)
-  end
-
-  execute(string.format('rm "%s"', archive))
-  log("success", "lua source ready")
-  return lua_dir
+    execute(string.format('rm "%s"', archive))
+    log("success", "lua source ready")
+    return lua_dir
 end
 
 local function ensure_luajit_source()
-  local luajit_dir = CACHE_DIR .. "/luajit-" .. LUAJIT_VERSION
+    local luajit_dir = CACHE_DIR .. "/luajit-" .. LUAJIT_VERSION
+    if dir_exists(luajit_dir .. "/src") then return luajit_dir end
 
-  if dir_exists(luajit_dir .. "/src") then return luajit_dir end
+    log("info", "cloning luajit " .. LUAJIT_VERSION)
+    mkdir(CACHE_DIR)
 
-  log("info", "cloning luajit " .. LUAJIT_VERSION)
-  mkdir(CACHE_DIR)
+    local cmd = string.format('git clone --depth 1 --branch %s "%s" "%s"', LUAJIT_BRANCH, LUAJIT_URL, luajit_dir)
+    if not execute(cmd) then
+        log("error", "failed to clone luajit")
+        os.exit(1)
+    end
 
-  local cmd = string.format('git clone --depth 1 --branch %s "%s" "%s"', LUAJIT_BRANCH, LUAJIT_URL, luajit_dir)
-  if not execute(cmd) then
-    log("error", "failed to clone luajit")
-    os.exit(1)
-  end
-
-  log("success", "luajit source ready")
-  return luajit_dir
-end
-
-local function check_luajit_requirements()
-  if not execute("which make >/dev/null 2>&1") then
-    log("error", "LuaJIT requires 'make' - please install GNU Make")
-    os.exit(1)
-  end
-  local has_gcc = execute("which gcc >/dev/null 2>&1")
-  local has_clang = execute("which clang >/dev/null 2>&1")
-  if not has_gcc and not has_clang then
-    log("error", "LuaJIT requires 'gcc' or 'clang' for host compilation")
-    os.exit(1)
-  end
-  return has_gcc and "gcc" or "clang"
+    log("success", "luajit source ready")
+    return luajit_dir
 end
 
 local function build_luajit_for_target(zig_bin, zig_target)
-  local luajit_src = ensure_luajit_source()
-  local target_build_dir = CACHE_DIR .. "/luajit-" .. cache_key("luajit", LUAJIT_VERSION, zig_target)
-  local libluajit_a = target_build_dir .. "/libluajit.a"
+    local luajit_src = ensure_luajit_source()
+    local target_build_dir = CACHE_DIR .. "/luajit-" .. cache_key("luajit", LUAJIT_VERSION, zig_target)
+    local libluajit_a = target_build_dir .. "/libluajit.a"
 
-  if file_exists(libluajit_a) then
-    log("success", "libluajit.a for " .. zig_target .. " exists, skipping")
+    if file_exists(libluajit_a) then
+        log("success", "libluajit.a for " .. zig_target .. " exists, skipping")
+        return target_build_dir, libluajit_a
+    end
+
+    log("info", "building luajit for " .. zig_target)
+    -- check_system_deps already validated gcc/clang exist for LuaJIT
+    local host_cc = execute("which gcc >/dev/null 2>&1") and "gcc" or "clang"
+
+    mkdir(target_build_dir)
+    execute(string.format('cp -r "%s/"* "%s/"', luajit_src, target_build_dir))
+
+    local target_sys = LUAJIT_TARGET_SYS[zig_target] or "Linux"
+    local zig_cc = string.format('"%s" cc -target %s', zig_bin, zig_target)
+
+    -- musl/macOS: disable DWARF unwinding (musl lacks libunwind, Zig linker struggles with macOS unwind info)
+    local xcflags = ""
+    if zig_target:match("musl") or zig_target:match("macos") or zig_target:match("darwin") then
+        xcflags = "XCFLAGS+=-DLUAJIT_NO_UNWIND"
+    end
+
+    -- macOS requires MACOSX_DEPLOYMENT_TARGET to be set
+    local env_export = ""
+    if zig_target:match("macos") or zig_target:match("darwin") then
+        env_export = "export MACOSX_DEPLOYMENT_TARGET=11.0 && "
+    end
+
+    local make_cmd = string.format(
+        '%scd "%s" && make clean && make amalg -j4 '
+            .. 'HOST_CC="%s" '
+            .. "STATIC_CC='%s' "
+            .. "DYNAMIC_CC='%s -fPIC' "
+            .. "TARGET_LD='%s' "
+            .. "TARGET_AR='\"%s\" ar rcus' "
+            .. "TARGET_STRIP=@: "
+            .. "TARGET_T=libluajit.a "
+            .. "TARGET_SYS=%s "
+            .. "BUILDMODE=static "
+            .. "%s "
+            .. "Q=",
+        env_export,
+        target_build_dir,
+        host_cc,
+        zig_cc,
+        zig_cc,
+        zig_cc,
+        zig_bin,
+        target_sys,
+        xcflags
+    )
+
+    if not execute(make_cmd) then
+        log("error", "failed to build luajit for " .. zig_target)
+        log("info", "command: " .. make_cmd)
+        os.exit(1)
+    end
+
+    local src_lib = target_build_dir .. "/src/libluajit.a"
+    if not file_exists(src_lib) then
+        log("error", "libluajit.a not found after build")
+        os.exit(1)
+    end
+
+    execute(string.format('cp "%s" "%s"', src_lib, libluajit_a))
+    execute(string.format('cp "%s/src/"*.h "%s/"', target_build_dir, target_build_dir))
+
+    log("success", "built libluajit.a for " .. zig_target)
     return target_build_dir, libluajit_a
-  end
-
-  log("info", "building luajit for " .. zig_target)
-  local host_cc = check_luajit_requirements()
-
-  mkdir(target_build_dir)
-  execute(string.format('cp -r "%s/"* "%s/"', luajit_src, target_build_dir))
-
-  local target_sys = LUAJIT_TARGET_SYS[zig_target] or "Linux"
-  local zig_cc = string.format('"%s" cc -target %s', zig_bin, zig_target)
-
-  -- musl/macOS: disable DWARF unwinding (musl lacks libunwind, Zig linker struggles with macOS unwind info)
-  local xcflags = ""
-  if zig_target:match("musl") or zig_target:match("macos") or zig_target:match("darwin") then
-    xcflags = "XCFLAGS+=-DLUAJIT_NO_UNWIND"
-  end
-
-  -- macOS requires MACOSX_DEPLOYMENT_TARGET to be set
-  local env_export = ""
-  if zig_target:match("macos") or zig_target:match("darwin") then
-    env_export = "export MACOSX_DEPLOYMENT_TARGET=11.0 && "
-  end
-
-  local make_cmd = string.format(
-    '%scd "%s" && make clean && make amalg -j4 '
-      .. 'HOST_CC="%s" '
-      .. "STATIC_CC='%s' "
-      .. "DYNAMIC_CC='%s -fPIC' "
-      .. "TARGET_LD='%s' "
-      .. "TARGET_AR='\"%s\" ar rcus' "
-      .. "TARGET_STRIP=@: "
-      .. "TARGET_T=libluajit.a "
-      .. "TARGET_SYS=%s "
-      .. "BUILDMODE=static "
-      .. "%s "
-      .. "Q=",
-    env_export,
-    target_build_dir,
-    host_cc,
-    zig_cc,
-    zig_cc,
-    zig_cc,
-    zig_bin,
-    target_sys,
-    xcflags
-  )
-
-  if not execute(make_cmd) then
-    log("error", "failed to build luajit for " .. zig_target)
-    log("info", "command: " .. make_cmd)
-    os.exit(1)
-  end
-
-  local src_lib = target_build_dir .. "/src/libluajit.a"
-  if not file_exists(src_lib) then
-    log("error", "libluajit.a not found after build")
-    os.exit(1)
-  end
-
-  execute(string.format('cp "%s" "%s"', src_lib, libluajit_a))
-  execute(string.format('cp "%s/src/"*.h "%s/"', target_build_dir, target_build_dir))
-
-  log("success", "built libluajit.a for " .. zig_target)
-  return target_build_dir, libluajit_a
 end
 
-local compile_script_counter = 0
 local function compile_parallel(commands)
-  if #commands == 0 then return true end
-  if #commands == 1 then return execute(commands[1]) end
+    if #commands == 0 then return true end
+    if #commands == 1 then return execute(commands[1]) end
 
-  local script = '#!/bin/sh\npids=""\nfailed=0\n'
-  for _, cmd in ipairs(commands) do
-    script = script .. string.format('(%s) &\npids="$pids $!"\n', cmd)
-  end
-  script = script .. "for pid in $pids; do wait $pid || failed=1; done\nexit $failed\n"
+    local script = '#!/bin/sh\npids=""\nfailed=0\n'
+    for _, cmd in ipairs(commands) do
+        script = script .. string.format('(%s) &\npids="$pids $!"\n', cmd)
+    end
+    script = script .. "for pid in $pids; do wait $pid || failed=1; done\nexit $failed\n"
 
-  compile_script_counter = compile_script_counter + 1
-  local pid = shellout("echo $$")
-  local script_path = string.format("%s/compile_%s_%d_%d.sh", BUILD_DIR, pid, compile_script_counter, os.time())
-  local f = io.open(script_path, "w")
-  if not f then return false end
-  f:write(script)
-  f:close()
-  execute("chmod +x " .. script_path)
-  local ok = execute(script_path)
-  os.remove(script_path)
-  return ok
+    local script_path = string.format("%s/compile_%d.sh", BUILD_DIR, os.time())
+    local f = io.open(script_path, "w")
+    if not f then return false end
+    f:write(script)
+    f:close()
+    execute("chmod +x " .. script_path)
+    local ok = execute(script_path)
+    os.remove(script_path)
+    return ok
 end
 
 local function build_lua_for_target(zig_bin, zig_target)
-  local lua_src = ensure_lua_source()
-  local target_build_dir = CACHE_DIR .. "/lua-" .. cache_key("lua", LUA_VERSION, zig_target)
-  local liblua_a = target_build_dir .. "/liblua.a"
+    local lua_src = ensure_lua_source()
+    local target_build_dir = CACHE_DIR .. "/lua-" .. cache_key("lua", LUA_VERSION, zig_target)
+    local liblua_a = target_build_dir .. "/liblua.a"
 
-  if file_exists(liblua_a) then
-    log("success", "liblua.a for " .. zig_target .. " exists, skipping")
+    if file_exists(liblua_a) then
+        log("success", "liblua.a for " .. zig_target .. " exists, skipping")
+        return target_build_dir, liblua_a
+    end
+
+    log("info", "building lua for " .. zig_target)
+    mkdir(target_build_dir)
+    execute(string.format('cp -r "%s/src/"*.c "%s/src/"*.h "%s/"', lua_src, lua_src, target_build_dir))
+
+    local cc = string.format('"%s" cc -target %s', zig_bin, zig_target)
+    local ar = string.format('"%s" ar', zig_bin)
+
+    local defines = "-DLUA_USE_POSIX"
+    if zig_target:match("windows") then
+        defines = ""
+    elseif zig_target:match("linux") then
+        defines = "-DLUA_USE_POSIX -DLUA_USE_DLOPEN"
+    elseif zig_target:match("macos") then
+        defines = "-DLUA_USE_MACOSX"
+    end
+
+    local objects = {}
+    local commands = {}
+    for _, src in ipairs(LUA_CORE_FILES) do
+        local obj = target_build_dir .. "/" .. src:gsub("%.c$", ".o")
+        local cmd = string.format('%s -c -O2 %s "%s/%s" -o "%s"', cc, defines, target_build_dir, src, obj)
+        table.insert(commands, cmd)
+        table.insert(objects, obj)
+    end
+
+    if not compile_parallel(commands) then
+        log("error", "failed to compile lua sources")
+        os.exit(1)
+    end
+
+    local cmd = string.format('%s rcs "%s" %s', ar, liblua_a, table.concat(objects, " "))
+    if not execute(cmd) then
+        log("error", "failed to create liblua.a")
+        os.exit(1)
+    end
+
+    log("success", "built liblua.a for " .. zig_target)
     return target_build_dir, liblua_a
-  end
-
-  log("info", "building lua for " .. zig_target)
-  mkdir(target_build_dir)
-
-  execute(string.format('cp -r "%s/src/"*.c "%s/src/"*.h "%s/"', lua_src, lua_src, target_build_dir))
-
-  local cc = string.format('"%s" cc -target %s', zig_bin, zig_target)
-  local ar = string.format('"%s" ar', zig_bin)
-
-  local defines = "-DLUA_USE_POSIX"
-  if zig_target:match("windows") then
-    defines = ""
-  elseif zig_target:match("linux") then
-    defines = "-DLUA_USE_POSIX -DLUA_USE_DLOPEN"
-  elseif zig_target:match("macos") then
-    defines = "-DLUA_USE_MACOSX"
-  end
-
-  local objects = {}
-  local commands = {}
-  for _, src in ipairs(LUA_CORE_FILES) do
-    local obj = target_build_dir .. "/" .. src:gsub("%.c$", ".o")
-    local cmd = string.format('%s -c -O2 %s "%s/%s" -o "%s"', cc, defines, target_build_dir, src, obj)
-    table.insert(commands, cmd)
-    table.insert(objects, obj)
-  end
-
-  if not compile_parallel(commands) then
-    log("error", "failed to compile lua sources")
-    os.exit(1)
-  end
-
-  local cmd = string.format('%s rcs "%s" %s', ar, liblua_a, table.concat(objects, " "))
-  if not execute(cmd) then
-    log("error", "failed to create liblua.a")
-    os.exit(1)
-  end
-
-  log("success", "built liblua.a for " .. zig_target)
-  return target_build_dir, liblua_a
 end
 
--- clib --
+local function write_zig_wrapper(path, zig_bin, zig_target, tool)
+    local f = io.open(path, "w")
+    if not f then return false end
+    if tool == "cc" then
+        f:write(string.format('#!/bin/sh\nexec "%s" cc -target %s "$@"\n', zig_bin, zig_target))
+    else
+        f:write(string.format('#!/bin/sh\nexec "%s" %s "$@"\n', zig_bin, tool))
+    end
+    f:close()
+    return execute("chmod +x " .. path)
+end
 
-local function resolve_clib(name)
-  local info = CLIB_REGISTRY[name:lower()]
-  if type(info) == "string" then info = CLIB_REGISTRY[info] end
-  return info
+local function build_openssl_for_target(zig_bin, zig_target)
+    local openssl_target = OPENSSL_TARGET_MAP[zig_target]
+    if not openssl_target then
+        log("warn", "OpenSSL not supported for target: " .. zig_target)
+        return nil
+    end
+
+    local build_dir = CACHE_DIR .. "/openssl-" .. cache_key("openssl", OPENSSL_VERSION, zig_target)
+    local libssl = build_dir .. "/libssl.a"
+    local libcrypto = build_dir .. "/libcrypto.a"
+    local incdir = build_dir .. "/include"
+
+    if file_exists(libssl) and file_exists(libcrypto) then
+        log("success", "OpenSSL for " .. zig_target .. " exists, skipping")
+        return { ssl = libssl, crypto = libcrypto, incdir = incdir }
+    end
+
+    log("info", "building OpenSSL " .. OPENSSL_VERSION .. " for " .. zig_target)
+    mkdir(build_dir)
+
+    local src_dir = BUILD_DIR .. "/openssl-" .. OPENSSL_VERSION
+    if not dir_exists(src_dir) then
+        local archive = BUILD_DIR .. "/openssl.tar.gz"
+        if not download_file(OPENSSL_URL, archive) then
+            log("error", "failed to download OpenSSL")
+            return nil
+        end
+        mkdir(BUILD_DIR)
+        if not execute(string.format('tar -xzf "%s" -C "%s"', archive, BUILD_DIR)) then
+            log("error", "failed to extract OpenSSL")
+            return nil
+        end
+        os.remove(archive)
+    end
+
+    local cc_wrapper = build_dir .. "/zig-cc"
+    local ar_wrapper = build_dir .. "/zig-ar"
+    local ranlib_wrapper = build_dir .. "/zig-ranlib"
+
+    write_zig_wrapper(cc_wrapper, zig_bin, zig_target, "cc")
+    write_zig_wrapper(ar_wrapper, zig_bin, zig_target, "ar")
+    write_zig_wrapper(ranlib_wrapper, zig_bin, zig_target, "ranlib")
+
+    local extra_flags = "-fno-sanitize=undefined"
+    if zig_target:match("macos") then extra_flags = extra_flags .. " -DOPENSSL_NO_APPLE_CRYPTO_RANDOM" end
+
+    local openssl_opts = table.concat({
+        "no-shared",
+        "no-tests",
+        "no-apps",
+        "no-docs",
+        "no-legacy", -- Remove deprecated algorithms (MD2, MD4, RIPEMD, etc.)
+        "no-engine", -- Remove hardware engine support
+        "no-comp", -- Remove compression (CRIME attack vector)
+        "no-idea", -- Remove IDEA cipher
+        "no-mdc2", -- Remove MDC2
+        "no-rc2", -- Remove RC2
+        "no-rc4", -- Remove RC4 (insecure)
+        "no-rc5", -- Remove RC5
+        "no-bf", -- Remove Blowfish
+        "no-cast", -- Remove CAST
+        "no-camellia", -- Remove Camellia
+        "no-seed", -- Remove SEED
+        "no-whirlpool", -- Remove Whirlpool
+        "no-sm2", -- Remove Chinese SM2
+        "no-sm3", -- Remove Chinese SM3
+        "no-sm4", -- Remove Chinese SM4
+        "no-srp", -- Remove SRP
+        "no-gost", -- Remove GOST (Russian algorithms)
+        "no-dso", -- Remove dynamic shared object support
+    }, " ")
+
+    local configure_cmd = string.format(
+        'cd "%s" && CC="%s" AR="%s" RANLIB="%s" CFLAGS="%s" ./Configure %s %s --prefix="%s" --openssldir="%s"',
+        src_dir,
+        cc_wrapper,
+        ar_wrapper,
+        ranlib_wrapper,
+        extra_flags,
+        openssl_target,
+        openssl_opts,
+        build_dir,
+        build_dir
+    )
+
+    if not execute(configure_cmd) then
+        log("error", "failed to configure OpenSSL")
+        return nil
+    end
+
+    local make_cmd = string.format('cd "%s" && make -j$(nproc) build_libs', src_dir)
+    if not execute(make_cmd) then
+        log("error", "failed to build OpenSSL")
+        return nil
+    end
+
+    execute(string.format('cp "%s/libssl.a" "%s/"', src_dir, build_dir))
+    execute(string.format('cp "%s/libcrypto.a" "%s/"', src_dir, build_dir))
+    execute(string.format('cp -r "%s/include" "%s/"', src_dir, build_dir))
+
+    log("success", "built OpenSSL for " .. zig_target)
+    return { ssl = libssl, crypto = libcrypto, incdir = incdir }
 end
 
 local function fetch_clib_source(info)
-  local src_dir = BUILD_DIR .. "/" .. info.name
+    local src_dir = BUILD_DIR .. "/" .. info.name
+    if dir_exists(src_dir) then return src_dir end
 
-  if dir_exists(src_dir) then return src_dir end
+    log("info", "fetching " .. info.name)
 
-  log("info", "fetching " .. info.name)
-
-  if info.type == "git" then
-    if not execute("git clone --quiet --depth 1 " .. info.url .. " " .. src_dir) then
-      log("error", "failed to clone " .. info.name)
-      os.exit(1)
-    end
-  elseif info.type == "tarball" then
-    local archive = BUILD_DIR .. "/" .. info.name .. ".tar.gz"
-    if not download_file(info.url, archive) then
-      log("error", "failed to download " .. info.name)
-      os.exit(1)
-    end
-    mkdir(src_dir)
-    if not execute(string.format('tar -xzf "%s" -C "%s" --strip-components=1', archive, src_dir)) then
-      log("error", "failed to extract " .. info.name)
-      os.exit(1)
-    end
-    execute(string.format('rm "%s"', archive))
-  elseif info.type == "zip" then
-    local archive = BUILD_DIR .. "/" .. info.name .. ".zip"
-    if not download_file(info.url, archive) then
-      log("error", "failed to download " .. info.name)
-      os.exit(1)
-    end
-    mkdir(src_dir)
-    local tmp_dir = BUILD_DIR .. "/" .. info.name .. "_tmp"
-    mkdir(tmp_dir)
-    if
-      not execute(
-        string.format(
-          'unzip -q "%s" -d "%s" && mv "%s"/*/* "%s"/ 2>/dev/null || mv "%s"/* "%s"/',
-          archive,
-          tmp_dir,
-          tmp_dir,
-          src_dir,
-          tmp_dir,
-          src_dir
-        )
-      )
-    then
-      log("error", "failed to extract " .. info.name)
-      os.exit(1)
-    end
-    execute(string.format('rm -rf "%s" "%s"', tmp_dir, archive))
-  elseif info.type == "local" then
-    mkdir(src_dir)
-    for _, source in ipairs(info.sources) do
-      local src_file = source
-      local dst_file = src_dir .. "/" .. source:match("([^/]+)$")
-      if not execute(string.format('cp "%s" "%s"', src_file, dst_file)) then
-        log("error", "failed to copy " .. src_file)
-        os.exit(1)
-      end
-    end
-  end
-
-  return src_dir
-end
-
-local function fetch_clibs_parallel(clib_names)
-  local to_fetch = {}
-  for _, name in ipairs(clib_names) do
-    local info = resolve_clib(name)
-    if info then
-      local src_dir = BUILD_DIR .. "/" .. info.name
-      if not dir_exists(src_dir) then table.insert(to_fetch, { info = info, src_dir = src_dir }) end
-    end
-  end
-
-  if #to_fetch == 0 then return end
-
-  if #to_fetch == 1 then
-    fetch_clib_source(to_fetch[1].info)
-    return
-  end
-
-  log("info", "fetching " .. #to_fetch .. " packages in parallel")
-
-  local script = '#!/bin/sh\npids=""\nfailed=0\n'
-  for _, item in ipairs(to_fetch) do
-    local info = item.info
-    local src_dir = item.src_dir
-    local cmd
     if info.type == "git" then
-      cmd = string.format("git clone --quiet --depth 1 %s %s", info.url, src_dir)
+        if not execute("git clone --quiet --depth 1 " .. info.url .. " " .. src_dir) then
+            log("error", "failed to clone " .. info.name)
+            os.exit(1)
+        end
     elseif info.type == "tarball" then
-      local archive = BUILD_DIR .. "/" .. info.name .. ".tar.gz"
-      cmd = string.format(
-        'curl -fsSL "%s" -o "%s" && mkdir -p "%s" && tar -xzf "%s" -C "%s" --strip-components=1 && rm "%s"',
-        info.url,
-        archive,
-        src_dir,
-        archive,
-        src_dir,
-        archive
-      )
+        local archive = BUILD_DIR .. "/" .. info.name .. ".tar.gz"
+        if not download_file(info.url, archive) then
+            log("error", "failed to download " .. info.name)
+            os.exit(1)
+        end
+        mkdir(src_dir)
+        if not execute(string.format('tar -xzf "%s" -C "%s" --strip-components=1', archive, src_dir)) then
+            log("error", "failed to extract " .. info.name)
+            os.exit(1)
+        end
+        execute(string.format('rm "%s"', archive))
+    elseif info.type == "zip" then
+        local archive = BUILD_DIR .. "/" .. info.name .. ".zip"
+        if not download_file(info.url, archive) then
+            log("error", "failed to download " .. info.name)
+            os.exit(1)
+        end
+        mkdir(src_dir)
+        local tmp_dir = BUILD_DIR .. "/" .. info.name .. "_tmp"
+        mkdir(tmp_dir)
+        if
+            not execute(
+                string.format(
+                    'unzip -q "%s" -d "%s" && mv "%s"/*/* "%s"/ 2>/dev/null || mv "%s"/* "%s"/',
+                    archive,
+                    tmp_dir,
+                    tmp_dir,
+                    src_dir,
+                    tmp_dir,
+                    src_dir
+                )
+            )
+        then
+            log("error", "failed to extract " .. info.name)
+            os.exit(1)
+        end
+        execute(string.format('rm -rf "%s" "%s"', tmp_dir, archive))
+    elseif info.type == "local" then
+        mkdir(src_dir)
+        for _, source in ipairs(info.sources) do
+            local src_file = source
+            local dst_file = src_dir .. "/" .. source:match("([^/]+)$")
+            if not execute(string.format('cp "%s" "%s"', src_file, dst_file)) then
+                log("error", "failed to copy " .. src_file)
+                os.exit(1)
+            end
+        end
     end
-    if cmd then script = script .. string.format('(%s) &\npids="$pids $!"\n', cmd) end
-  end
-  script = script .. "for pid in $pids; do wait $pid || failed=1; done\nexit $failed\n"
 
-  local script_path = BUILD_DIR .. "/fetch_parallel.sh"
-  mkdir(BUILD_DIR)
-  local f = io.open(script_path, "w")
-  if not f then
-    log("error", "cannot create parallel fetch script")
-    return
-  end
-  f:write(script)
-  f:close()
-  execute("chmod +x " .. script_path)
-  local ok = execute(script_path)
-  os.remove(script_path)
+    if info.preprocess then info.preprocess(src_dir) end
 
-  if not ok then
-    log("error", "parallel fetch failed")
-    os.exit(1)
-  end
+    return src_dir
 end
 
 local function build_clib_for_target(zig_bin, zig_target, lua_incdir, clib_name)
-  local info = resolve_clib(clib_name)
-  if not info then
-    log("warn", "unknown C library: " .. clib_name .. " (skipping)")
-    return nil, nil
-  end
+    local info = resolve_clib(clib_name)
+    if not info then
+        log("warn", "unknown C library: " .. clib_name .. " (skipping)")
+        return nil, nil
+    end
 
-  local lua_runtime = IS_LUAJIT and "luajit" or "lua54"
-  local cache_id = info.url or table.concat(info.sources, ",")
-  local target_build_dir = CACHE_DIR
-    .. "/"
-    .. info.name
-    .. "-"
-    .. cache_key(info.name, cache_id, zig_target, lua_runtime)
-  local lib_a = target_build_dir .. "/" .. info.name .. ".a"
+    local openssl_libs = nil
+    if info.requires_openssl then
+        openssl_libs = build_openssl_for_target(zig_bin, zig_target)
+        if not openssl_libs then
+            log("error", "OpenSSL required for " .. clib_name .. " but build failed")
+            return nil, nil
+        end
+    end
 
-  if file_exists(lib_a) then
-    log("success", info.name .. ".a for " .. zig_target .. " exists, skipping")
+    local lua_runtime = IS_LUAJIT and "luajit" or "lua54"
+    local cache_id = info.url or table.concat(info.sources, ",")
+    local target_build_dir = CACHE_DIR
+        .. "/"
+        .. info.name
+        .. "-"
+        .. cache_key(info.name, cache_id, zig_target, lua_runtime)
+    local lib_a = target_build_dir .. "/" .. info.name .. ".a"
+
+    if file_exists(lib_a) then
+        log("success", info.name .. ".a for " .. zig_target .. " exists, skipping")
+        if openssl_libs then info.openssl_libs = openssl_libs end
+        return lib_a, info
+    end
+
+    log("info", "building " .. info.name .. " for " .. zig_target)
+    mkdir(target_build_dir)
+
+    local src_dir = fetch_clib_source(info)
+
+    local cc = string.format('"%s" cc -target %s', zig_bin, zig_target)
+    local ar = string.format('"%s" ar', zig_bin)
+
+    local define_flags = ""
+    if info.defines then
+        for _, def in ipairs(info.defines) do
+            define_flags = define_flags .. " -D" .. def
+        end
+    end
+
+    local all_sources = {}
+    for _, src in ipairs(info.sources) do
+        table.insert(all_sources, src)
+    end
+    if zig_target:find("windows") then
+        if info.sources_windows then
+            for _, src in ipairs(info.sources_windows) do
+                table.insert(all_sources, src)
+            end
+        end
+    else
+        if info.sources_unix then
+            for _, src in ipairs(info.sources_unix) do
+                table.insert(all_sources, src)
+            end
+        end
+    end
+
+    local objects = {}
+    local commands = {}
+    for _, src in ipairs(all_sources) do
+        local src_name = info.type == "local" and src:match("([^/]+)$") or src
+        local src_path = src_dir .. "/" .. src_name
+        local obj_name = src:gsub("/", "_"):gsub("%.c$", ".o")
+        local obj = target_build_dir .. "/" .. obj_name
+        local incdir_flags = ""
+        if info.incdirs then
+            for _, dir in ipairs(info.incdirs) do
+                incdir_flags = incdir_flags .. string.format(' -I"%s"', dir)
+            end
+        end
+        if info.incdirs_relative then
+            for _, dir in ipairs(info.incdirs_relative) do
+                incdir_flags = incdir_flags .. string.format(' -I"%s/%s"', src_dir, dir)
+            end
+        end
+        if openssl_libs then incdir_flags = incdir_flags .. string.format(' -I"%s"', openssl_libs.incdir) end
+        local cmd = string.format(
+            '%s -c -O2 -fPIC %s%s -I"%s" -I"%s" "%s" -o "%s"',
+            cc,
+            define_flags,
+            incdir_flags,
+            lua_incdir,
+            src_dir,
+            src_path,
+            obj
+        )
+        table.insert(commands, cmd)
+        table.insert(objects, obj)
+    end
+
+    if not compile_parallel(commands) then
+        log("error", "failed to compile " .. info.name .. " for " .. zig_target)
+        os.exit(1)
+    end
+
+    local cmd = string.format('%s rcs "%s" %s', ar, lib_a, table.concat(objects, " "))
+    if not execute(cmd) then
+        log("error", "failed to create " .. info.name .. ".a for " .. zig_target)
+        os.exit(1)
+    end
+
+    log("success", "built " .. info.name .. ".a for " .. zig_target)
+    if openssl_libs then info.openssl_libs = openssl_libs end
     return lib_a, info
-  end
-
-  log("info", "building " .. info.name .. " for " .. zig_target)
-  mkdir(target_build_dir)
-
-  local src_dir = fetch_clib_source(info)
-
-  local cc = string.format('"%s" cc -target %s', zig_bin, zig_target)
-  local ar = string.format('"%s" ar', zig_bin)
-
-  local define_flags = ""
-  if info.defines then
-    for _, def in ipairs(info.defines) do
-      define_flags = define_flags .. " -D" .. def
-    end
-  end
-
-  local all_sources = {}
-  for _, src in ipairs(info.sources) do
-    table.insert(all_sources, src)
-  end
-  if zig_target:find("windows") then
-    if info.sources_windows then
-      for _, src in ipairs(info.sources_windows) do
-        table.insert(all_sources, src)
-      end
-    end
-  else
-    if info.sources_unix then
-      for _, src in ipairs(info.sources_unix) do
-        table.insert(all_sources, src)
-      end
-    end
-  end
-
-  local objects = {}
-  local commands = {}
-  for _, src in ipairs(all_sources) do
-    local src_name = info.type == "local" and src:match("([^/]+)$") or src
-    local src_path = src_dir .. "/" .. src_name
-    local obj_name = basename(src):gsub("%.c$", ".o")
-    local obj = target_build_dir .. "/" .. obj_name
-    local incdir_flags = ""
-    if info.incdirs then
-      for _, dir in ipairs(info.incdirs) do
-        incdir_flags = incdir_flags .. string.format(' -I"%s"', dir)
-      end
-    end
-    local cmd = string.format(
-      '%s -c -O2 -fPIC %s%s -I"%s" -I"%s" "%s" -o "%s"',
-      cc,
-      define_flags,
-      incdir_flags,
-      lua_incdir,
-      src_dir,
-      src_path,
-      obj
-    )
-    table.insert(commands, cmd)
-    table.insert(objects, obj)
-  end
-
-  if not compile_parallel(commands) then
-    log("error", "failed to compile " .. info.name .. " for " .. zig_target)
-    os.exit(1)
-  end
-
-  local cmd = string.format('%s rcs "%s" %s', ar, lib_a, table.concat(objects, " "))
-  if not execute(cmd) then
-    log("error", "failed to create " .. info.name .. ".a for " .. zig_target)
-    os.exit(1)
-  end
-
-  log("success", "built " .. info.name .. ".a for " .. zig_target)
-  return lib_a, info
 end
 
--- rockspec --
-
-local function find_rockspec(specified)
-  if specified then
-    if not file_exists(specified) then
-      log("error", "rockspec not found: " .. specified)
-      os.exit(1)
+local function parse_args(args)
+    local opts = {
+        rockspec = nil,
+        main = nil,
+        clibs = {},
+        modules = {},
+        embeds = {},
+        output = nil,
+        targets = {},
+        rocks = {},
+    }
+    local positionals = {}
+    local i = 1
+    while i <= #args do
+        local a = args[i]
+        if a == "-h" or a == "--help" then
+            show_help()
+            os.exit(0)
+        elseif a == "-q" or a == "--quiet" then
+            log_level = 0
+        elseif a == "-v" or a == "--verbose" then
+            log_level = 2
+        elseif a == "-m" or a == "--main" then
+            i = i + 1
+            opts.main = args[i]
+        elseif a == "-c" or a == "--clib" then
+            i = i + 1
+            table.insert(opts.clibs, args[i])
+        elseif a == "-e" or a == "--embed" then
+            i = i + 1
+            table.insert(opts.embeds, args[i])
+        elseif a == "-R" or a == "--rock" then
+            i = i + 1
+            table.insert(opts.rocks, args[i])
+        elseif a == "-r" or a == "--rockspec" then
+            i = i + 1
+            opts.rockspec = args[i]
+        elseif a == "-t" or a == "--target" then
+            i = i + 1
+            local target = args[i]
+            if not TARGET_MAP[target] then
+                log("error", "unknown target: " .. target)
+                local keys = {}
+                for k in pairs(TARGET_MAP) do
+                    table.insert(keys, k)
+                end
+                table.sort(keys)
+                log("info", "available targets: " .. table.concat(keys, ", "))
+                os.exit(1)
+            end
+            table.insert(opts.targets, target)
+        elseif a:sub(1, 1) ~= "-" then
+            table.insert(positionals, a)
+        end
+        i = i + 1
     end
-    return specified
-  end
-
-  local files = glob("*.rockspec")
-  if #files == 0 then
-    log("error", "no rockspec found in current directory")
-    os.exit(1)
-  end
-
-  log("success", "found rockspec: " .. files[1])
-  return files[1]
+    for _, p in ipairs(positionals) do
+        if p:match("%.lua$") or dir_exists(p) then
+            table.insert(opts.modules, p)
+        else
+            opts.output = p
+        end
+    end
+    return opts
 end
 
-local function parse_dependency(dep_str)
-  local name = dep_str:match("^([%w_-]+)")
-  return name and name:lower() or nil
+local function collect_lua_files(path)
+    path = path:gsub("/+$", "")
+    local files = {}
+    if path:match("%.lua$") then
+        if file_exists(path) then
+            local base = path:match("^(.*)/[^/]+$") or ""
+            if base ~= "" then base = base .. "/" end
+            table.insert(files, { path = path, base = base })
+        end
+    elseif dir_exists(path) then
+        local base = path:match("^(.*)/[^/]+$") or ""
+        if base ~= "" then base = base .. "/" end
+        for _, f in ipairs(glob(path .. "/*.lua")) do
+            table.insert(files, { path = f, base = base })
+        end
+        for _, f in ipairs(glob(path .. "/**/*.lua")) do
+            table.insert(files, { path = f, base = base })
+        end
+    end
+    return files
 end
 
-local function parse_rockspec(path)
-  log("info", "parsing rockspec")
-
-  local env = {}
-  local chunk, err = loadfile(path, "t", env)
-  if not chunk then
-    log("error", "failed to load rockspec: " .. err)
-    os.exit(1)
-  end
-  chunk()
-
-  local package_name = env.package
-  if not package_name then
-    log("error", "cannot find package name in rockspec")
-    os.exit(1)
-  end
-
-  local bin_script
-  if env.build and env.build.install and env.build.install.bin then
-    for _, script in pairs(env.build.install.bin) do
-      bin_script = script
-      break
+local function collect_embed_files(paths)
+    local files = {}
+    local seen = {}
+    for _, path in ipairs(paths) do
+        path = path:gsub("/+$", "")
+        if file_exists(path) and not dir_exists(path) then
+            if not seen[path] then
+                seen[path] = true
+                table.insert(files, path)
+            end
+        elseif dir_exists(path) then
+            for _, f in ipairs(glob(path .. "/*")) do
+                if file_exists(f) and not dir_exists(f) and not seen[f] then
+                    seen[f] = true
+                    table.insert(files, f)
+                end
+            end
+            for _, f in ipairs(glob(path .. "/**/*")) do
+                if file_exists(f) and not dir_exists(f) and not seen[f] then
+                    seen[f] = true
+                    table.insert(files, f)
+                end
+            end
+        end
     end
-  end
-
-  if not bin_script or not file_exists(bin_script) then
-    log("error", "cannot find bin script in rockspec")
-    os.exit(1)
-  end
-
-  local module_files = {}
-  if env.build and env.build.modules then
-    for _, file in pairs(env.build.modules) do
-      if type(file) == "string" and file:match("%.lua$") then table.insert(module_files, file) end
-    end
-  end
-  table.sort(module_files)
-
-  local c_deps = {}
-  if env.dependencies then
-    for _, dep in ipairs(env.dependencies) do
-      local name = parse_dependency(dep)
-      if name and name ~= "lua" and resolve_clib(name) then table.insert(c_deps, name) end
-    end
-  end
-
-  log("success", "package: " .. package_name)
-  log("success", "bin script: " .. bin_script)
-  log("success", "modules: " .. #module_files .. " files")
-  if #c_deps > 0 then log("success", "C dependencies: " .. table.concat(c_deps, ", ")) end
-
-  return {
-    name = package_name,
-    bin = bin_script,
-    modules = module_files,
-    c_deps = c_deps,
-  }
+    table.sort(files)
+    return files
 end
 
--- luastatic --
+-- c source generation --
 
 local function string_to_c_hex_literal(characters)
-  local hex = {}
-  for character in characters:gmatch(".") do
-    table.insert(hex, ("0x%02x"):format(string.byte(character)))
-  end
-  return table.concat(hex, ", ")
+    local hex = {}
+    for character in characters:gmatch(".") do
+        table.insert(hex, ("0x%02x"):format(string.byte(character)))
+    end
+    return table.concat(hex, ", ")
+end
+
+local function make_source_info(path, base, modname)
+    local info = {}
+    info.path = path
+    info.basename = basename(path)
+    info.basename_noextension = info.basename:match("(.+)%.") or info.basename
+    if modname then
+        info.dotpath = modname .. ".lua"
+        info.dotpath_noextension = modname
+        info.dotpath_underscore = modname:gsub("[.-]", "_")
+    else
+        local relpath = path
+        if base and base ~= "" and path:sub(1, #base) == base then relpath = path:sub(#base + 1) end
+        info.dotpath = relpath:gsub("^%.%/", ""):gsub("[\\/]", ".")
+        info.dotpath_noextension = info.dotpath:match("(.+)%.") or info.dotpath
+        info.dotpath_underscore = info.dotpath_noextension:gsub("[.-]", "_")
+    end
+    return info
+end
+
+local function prepare_sources(spec)
+    local lua_source_files = {}
+    table.insert(lua_source_files, make_source_info(spec.bin))
+    for _, f in ipairs(spec.modules) do
+        if type(f) == "table" then
+            table.insert(lua_source_files, make_source_info(f.path, f.base, f.modname))
+        else
+            table.insert(lua_source_files, make_source_info(f))
+        end
+    end
+    return lua_source_files
 end
 
 local function generate_c_source(lua_source_files, module_library_files, embed_files)
-  local mainlua = lua_source_files[1]
-  local outfilename = BUILD_DIR .. "/" .. basename(mainlua.path):gsub("%.lua$", "") .. ".luastatic.c"
-  local outfile = io.open(outfilename, "w+")
-  if not outfile then
-    log("error", "cannot create file: " .. outfilename)
-    os.exit(1)
-  end
-
-  local function out(...)
-    outfile:write(...)
-  end
-
-  local function outhex(str)
-    outfile:write(string_to_c_hex_literal(str), ", ")
-  end
-
-  local function out_lua_source(file)
-    local f = io.open(file.path, "r")
-    if not f then
-      log("error", "cannot open file: " .. file.path)
-      os.exit(1)
+    local mainlua = lua_source_files[1]
+    local outfilename = BUILD_DIR .. "/" .. basename(mainlua.path):gsub("%.lua$", "") .. ".luastatic.c"
+    local outfile = io.open(outfilename, "w+")
+    if not outfile then
+        log("error", "cannot create file: " .. outfilename)
+        os.exit(1)
     end
-    local prefix = f:read(4)
-    if prefix then
-      if prefix:match("\xef\xbb\xbf") then prefix = prefix:sub(4) end
-      if prefix:match("#") then
-        f:read("*line")
-        prefix = "\n"
-      end
-      out(string_to_c_hex_literal(prefix), ", ")
-    end
-    while true do
-      local strdata = f:read(4096)
-      if strdata then
-        out(string_to_c_hex_literal(strdata), ", ")
-      else
-        break
-      end
-    end
-    f:close()
-  end
 
-  out([[
+    local function out(...)
+        outfile:write(...)
+    end
+
+    local function outhex(str)
+        outfile:write(string_to_c_hex_literal(str), ", ")
+    end
+
+    local function out_lua_source(file)
+        local f = io.open(file.path, "r")
+        if not f then
+            log("error", "cannot open file: " .. file.path)
+            os.exit(1)
+        end
+        local prefix = f:read(4)
+        if prefix then
+            if prefix:match("\xef\xbb\xbf") then prefix = prefix:sub(4) end
+            if prefix:match("#") then
+                f:read("*line")
+                prefix = "\n"
+            end
+            out(string_to_c_hex_literal(prefix), ", ")
+        end
+        while true do
+            local strdata = f:read(4096)
+            if strdata then
+                out(string_to_c_hex_literal(strdata), ", ")
+            else
+                break
+            end
+        end
+        f:close()
+    end
+
+    out([[
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -1080,11 +1518,11 @@ extern "C" {
 #endif
 ]])
 
-  for _, library in ipairs(module_library_files) do
-    out(("    int luaopen_%s(lua_State *L);\n"):format(library.dotpath_underscore))
-  end
+    for _, library in ipairs(module_library_files) do
+        out(("    int luaopen_%s(lua_State *L);\n"):format(library.dotpath_underscore))
+    end
 
-  out([[
+    out([[
 #ifdef __cplusplus
 }
 #endif
@@ -1098,7 +1536,7 @@ int main(int argc, char *argv[])
     static const unsigned char lua_loader_program[] = {
         ]])
 
-  outhex([[
+    outhex([[
 local args = {...}
 local lua_bundle = args[1]
 
@@ -1137,7 +1575,7 @@ table.insert(package.loaders or package.searchers, 2, lua_loader)
 local unpack = unpack or table.unpack
 ]])
 
-  outhex(([[
+    outhex(([[
 local func = lua_loader("%s")
 if type(func) == "function" then
     func(unpack(arg))
@@ -1146,7 +1584,7 @@ else
 end
 ]]):format(mainlua.dotpath_noextension))
 
-  out(([[
+    out(([[
 
     };
     if (luaL_loadbuffer(L, (const char*)lua_loader_program, sizeof(lua_loader_program), "%s") != LUA_OK)
@@ -1159,49 +1597,49 @@ end
     lua_newtable(L);
 ]]):format(mainlua.basename_noextension))
 
-  for i, file in ipairs(lua_source_files) do
-    out(("    static const unsigned char lua_require_%i[] = {\n        "):format(i))
-    out_lua_source(file)
-    out("\n    };\n")
-    out(([[
+    for i, file in ipairs(lua_source_files) do
+        out(("    static const unsigned char lua_require_%i[] = {\n        "):format(i))
+        out_lua_source(file)
+        out("\n    };\n")
+        out(([[
     lua_pushlstring(L, (const char*)lua_require_%i, sizeof(lua_require_%i));
 ]]):format(i, i))
-    out(('    lua_setfield(L, -2, "%s");\n\n'):format(file.dotpath_noextension))
-  end
+        out(('    lua_setfield(L, -2, "%s");\n\n'):format(file.dotpath_noextension))
+    end
 
-  for _, library in ipairs(module_library_files) do
-    out(("    lua_pushcfunction(L, luaopen_%s);\n"):format(library.dotpath_underscore))
-    out(('    lua_setfield(L, -2, "%s");\n\n'):format(library.dotpath_noextension))
-  end
+    for _, library in ipairs(module_library_files) do
+        out(("    lua_pushcfunction(L, luaopen_%s);\n"):format(library.dotpath_underscore))
+        out(('    lua_setfield(L, -2, "%s");\n\n'):format(library.dotpath_noextension))
+    end
 
-  embed_files = embed_files or {}
-  if #embed_files > 0 then
-    for i, path in ipairs(embed_files) do
-      out(("    static const unsigned char embed_data_%i[] = {\n        "):format(i))
-      local f = io.open(path, "rb")
-      if f then
-        while true do
-          local data = f:read(4096)
-          if data then
-            out(string_to_c_hex_literal(data), ", ")
-          else
-            break
-          end
+    embed_files = embed_files or {}
+    if #embed_files > 0 then
+        for i, path in ipairs(embed_files) do
+            out(("    static const unsigned char embed_data_%i[] = {\n        "):format(i))
+            local f = io.open(path, "rb")
+            if f then
+                while true do
+                    local data = f:read(4096)
+                    if data then
+                        out(string_to_c_hex_literal(data), ", ")
+                    else
+                        break
+                    end
+                end
+                f:close()
+            end
+            out("\n    };\n")
         end
-        f:close()
-      end
-      out("\n    };\n")
-    end
 
-    out("    lua_newtable(L);\n")
-    for i, path in ipairs(embed_files) do
-      local key = path:gsub("^%./", "")
-      out(("    lua_pushlstring(L, (const char*)embed_data_%i, sizeof(embed_data_%i));\n"):format(i, i))
-      out(('    lua_setfield(L, -2, "%s");\n'):format(key))
-    end
-    out('    lua_setglobal(L, "__luast_embed_data");\n\n')
+        out("    lua_newtable(L);\n")
+        for i, path in ipairs(embed_files) do
+            local key = path:gsub("^%./", "")
+            out(("    lua_pushlstring(L, (const char*)embed_data_%i, sizeof(embed_data_%i));\n"):format(i, i))
+            out(('    lua_setfield(L, -2, "%s");\n'):format(key))
+        end
+        out('    lua_setglobal(L, "__luast_embed_data");\n\n')
 
-    local embed_module = [[
+        local embed_module = [[
 local embed_data = __luast_embed_data or {}
 local M = {}
 function M.read(path)
@@ -1220,14 +1658,14 @@ function M.list()
 end
 return M
 ]]
-    out("    static const unsigned char luast_embed_module[] = {\n        ")
-    out(string_to_c_hex_literal(embed_module))
-    out("\n    };\n")
-    out("    lua_pushlstring(L, (const char*)luast_embed_module, sizeof(luast_embed_module));\n")
-    out('    lua_setfield(L, -2, "luast.embed");\n\n')
-  end
+        out("    static const unsigned char luast_embed_module[] = {\n        ")
+        out(string_to_c_hex_literal(embed_module))
+        out("\n    };\n")
+        out("    lua_pushlstring(L, (const char*)luast_embed_module, sizeof(luast_embed_module));\n")
+        out('    lua_setfield(L, -2, "luast.embed");\n\n')
+    end
 
-  out([[
+    out([[
     if (docall(L, 1, LUA_MULTRET))
     {
         const char *errmsg = lua_tostring(L, 1);
@@ -1243,442 +1681,299 @@ return M
 }
 ]])
 
-  outfile:close()
-  return outfilename
-end
-
--- build --
-
-local function make_source_info(path, base)
-  local info = {}
-  info.path = path
-  info.basename = basename(path)
-  info.basename_noextension = info.basename:match("(.+)%.") or info.basename
-  local relpath = path
-  if base and base ~= "" and path:sub(1, #base) == base then relpath = path:sub(#base + 1) end
-  info.dotpath = relpath:gsub("^%.%/", ""):gsub("[\\/]", ".")
-  info.dotpath_noextension = info.dotpath:match("(.+)%.") or info.dotpath
-  info.dotpath_underscore = info.dotpath_noextension:gsub("[.-]", "_")
-  return info
-end
-
-local function prepare_sources(spec)
-  local lua_source_files = {}
-  table.insert(lua_source_files, make_source_info(spec.bin))
-  for _, f in ipairs(spec.modules) do
-    if type(f) == "table" then
-      table.insert(lua_source_files, make_source_info(f.path, f.base))
-    else
-      table.insert(lua_source_files, make_source_info(f))
-    end
-  end
-  return lua_source_files
-end
-
-local function build_for_target(spec, output_name, target)
-  local zig_target = TARGET_MAP[target]
-  local runtime_name = IS_LUAJIT and "luajit" or "lua"
-  log("info", "cross-compiling for " .. target .. " (" .. zig_target .. ") with " .. runtime_name)
-
-  local zig_bin = ensure_zig()
-  local lua_incdir, lua_static_lib
-  if IS_LUAJIT then
-    lua_incdir, lua_static_lib = build_luajit_for_target(zig_bin, zig_target)
-  else
-    lua_incdir, lua_static_lib = build_lua_for_target(zig_bin, zig_target)
-  end
-
-  local module_library_files = {}
-  for _, dep in ipairs(spec.c_deps) do
-    local lib_a, info = build_clib_for_target(zig_bin, zig_target, lua_incdir, dep)
-    if lib_a and info and info.luaopen then
-      local modname = info.modname or info.luaopen:gsub("_", ".")
-      table.insert(module_library_files, {
-        path = lib_a,
-        dotpath_underscore = info.luaopen,
-        dotpath_noextension = modname,
-      })
-    end
-    if info and info.lua_files then
-      local src_dir = fetch_clib_source(info)
-      for _, lua_file in ipairs(info.lua_files) do
-        local full_path = src_dir .. "/" .. lua_file
-        table.insert(spec.modules, { path = full_path, base = src_dir .. "/src/" })
-      end
-    end
-  end
-
-  local lua_source_files = prepare_sources(spec)
-
-  local outfilename = generate_c_source(lua_source_files, module_library_files, spec.embeds)
-
-  local cc = string.format('"%s" cc -target %s', zig_bin, zig_target)
-
-  local module_libs = {}
-  for _, lib in ipairs(module_library_files) do
-    table.insert(module_libs, lib.path)
-  end
-
-  local target_output = output_name .. "-" .. target:gsub("-", "_")
-  if zig_target:match("windows") then target_output = target_output .. ".exe" end
-  local output_path = BUILD_DIR .. "/" .. target_output
-
-  local static_flag = zig_target:match("musl") and "-static" or ""
-  local link_flags = "-lm"
-  if zig_target:match("linux") and not zig_target:match("musl") then link_flags = link_flags .. " -ldl" end
-
-  local compile_command = table.concat({
-    cc,
-    "-Os",
-    static_flag,
-    outfilename,
-    table.concat(module_libs, " "),
-    lua_static_lib,
-    link_flags,
-    "-I" .. lua_incdir,
-    "-o " .. output_path,
-  }, " ")
-
-  if not execute(compile_command) then
-    log("error", "compilation failed for " .. target)
-    os.exit(1)
-  end
-
-  execute(
-    string.format(
-      '"%s" objcopy --strip-all "%s" 2>/dev/null || strip "%s" 2>/dev/null',
-      zig_bin,
-      output_path,
-      output_path
-    )
-  )
-
-  local dst = "./" .. target_output
-  execute(string.format('cp "%s" "%s"', output_path, dst))
-  execute("chmod +x " .. dst .. " 2>/dev/null")
-
-  local size = shellout("du -h " .. dst):match("^%S+") or "?"
-  log("success", "output: " .. dst .. " (" .. size .. ")")
-
-  return dst
-end
-
-local function build_targets_parallel(spec, output_name, targets)
-  local runtime_name = IS_LUAJIT and "luajit" or "lua"
-  log("info", "building " .. #targets .. " targets in parallel with " .. runtime_name)
-
-  local zig_bin = ensure_zig()
-  if IS_LUAJIT then
-    ensure_luajit_source()
-  else
-    ensure_lua_source()
-  end
-
-  fetch_clibs_parallel(spec.c_deps)
-
-  for _, target in ipairs(targets) do
-    local zig_target = TARGET_MAP[target]
-    local lua_incdir
-    if IS_LUAJIT then
-      lua_incdir = build_luajit_for_target(zig_bin, zig_target)
-    else
-      lua_incdir = build_lua_for_target(zig_bin, zig_target)
-    end
-    for _, dep in ipairs(spec.c_deps) do
-      build_clib_for_target(zig_bin, zig_target, lua_incdir, dep)
-    end
-  end
-
-  local script_path = BUILD_DIR .. "/parallel_build.sh"
-  local log_dir = BUILD_DIR .. "/logs"
-  mkdir(log_dir)
-
-  local f = io.open(script_path, "w")
-  if not f then
-    log("error", "cannot create parallel build script")
-    os.exit(1)
-  end
-
-  f:write("#!/bin/sh\n")
-  f:write('pids=""\n')
-  f:write("failed=0\n\n")
-
-  local clib_args = ""
-  for _, dep in ipairs(spec.c_deps) do
-    clib_args = clib_args .. string.format(' -c "%s"', dep)
-  end
-
-  for _, target in ipairs(targets) do
-    local log_file = log_dir .. "/" .. target .. ".log"
-    local script = arg[0]
-    f:write(string.format("(\n"))
-    f:write(string.format('  "%s" -t %s%s %s > "%s" 2>&1\n', script, target, clib_args, output_name, log_file))
-    f:write(string.format(") &\n"))
-    f:write(string.format('pids="$pids $!"\n\n'))
-  end
-
-  f:write([[
-for pid in $pids; do
-    if ! wait $pid; then
-        failed=1
-    fi
-done
-
-exit $failed
-]])
-
-  f:close()
-  execute("chmod +x " .. script_path)
-
-  local start_time = os.time()
-  local ok = execute(script_path)
-  local elapsed = os.time() - start_time
-
-  if not ok then
-    log("error", "parallel build failed")
-    for _, target in ipairs(targets) do
-      local log_file = log_dir .. "/" .. target .. ".log"
-      local lf = io.open(log_file, "r")
-      if lf then
-        local content = lf:read("*a")
-        lf:close()
-        if content:match("%[error%]") then
-          log("error", "=== " .. target .. " ===")
-          io.stderr:write(content)
-        end
-      end
-    end
-    os.exit(1)
-  end
-
-  log("success", string.format("built %d targets in %ds", #targets, elapsed))
-end
-
-local function parse_args(args)
-  local opts = {
-    rockspec = nil,
-    main = nil,
-    clibs = {},
-    modules = {},
-    embeds = {},
-    output = nil,
-    targets = {},
-  }
-  local positionals = {}
-  local i = 1
-  while i <= #args do
-    local a = args[i]
-    if a == "-h" or a == "--help" then
-      show_help()
-      os.exit(0)
-    elseif a == "-q" or a == "--quiet" then
-      log_level = 0
-    elseif a == "-v" or a == "--verbose" then
-      log_level = 2
-    elseif a == "-m" or a == "--main" then
-      i = i + 1
-      opts.main = args[i]
-    elseif a == "-c" or a == "--clib" then
-      i = i + 1
-      table.insert(opts.clibs, args[i])
-    elseif a == "-e" or a == "--embed" then
-      i = i + 1
-      table.insert(opts.embeds, args[i])
-    elseif a == "-r" or a == "--rockspec" then
-      i = i + 1
-      opts.rockspec = args[i]
-    elseif a == "-t" or a == "--target" then
-      i = i + 1
-      local target = args[i]
-      if not TARGET_MAP[target] then
-        log("error", "unknown target: " .. target)
-        local keys = {}
-        for k in pairs(TARGET_MAP) do
-          table.insert(keys, k)
-        end
-        table.sort(keys)
-        log("info", "available targets: " .. table.concat(keys, ", "))
-        os.exit(1)
-      end
-      table.insert(opts.targets, target)
-    elseif a:sub(1, 1) ~= "-" then
-      table.insert(positionals, a)
-    end
-    i = i + 1
-  end
-  for _, p in ipairs(positionals) do
-    if p:match("%.lua$") or dir_exists(p) then
-      table.insert(opts.modules, p)
-    else
-      opts.output = p
-    end
-  end
-  return opts
-end
-
-local function collect_lua_files(path)
-  path = path:gsub("/+$", "")
-  local files = {}
-  if path:match("%.lua$") then
-    if file_exists(path) then
-      local base = path:match("^(.*)/[^/]+$") or ""
-      if base ~= "" then base = base .. "/" end
-      table.insert(files, { path = path, base = base })
-    end
-  elseif dir_exists(path) then
-    local base = path:match("^(.*)/[^/]+$") or ""
-    if base ~= "" then base = base .. "/" end
-    for _, f in ipairs(glob(path .. "/*.lua")) do
-      table.insert(files, { path = f, base = base })
-    end
-    for _, f in ipairs(glob(path .. "/**/*.lua")) do
-      table.insert(files, { path = f, base = base })
-    end
-  end
-  return files
-end
-
-local function collect_embed_files(paths)
-  local files = {}
-  local seen = {}
-  for _, path in ipairs(paths) do
-    path = path:gsub("/+$", "")
-    if file_exists(path) and not dir_exists(path) then
-      if not seen[path] then
-        seen[path] = true
-        table.insert(files, path)
-      end
-    elseif dir_exists(path) then
-      for _, f in ipairs(glob(path .. "/*")) do
-        if file_exists(f) and not dir_exists(f) and not seen[f] then
-          seen[f] = true
-          table.insert(files, f)
-        end
-      end
-      for _, f in ipairs(glob(path .. "/**/*")) do
-        if file_exists(f) and not dir_exists(f) and not seen[f] then
-          seen[f] = true
-          table.insert(files, f)
-        end
-      end
-    end
-  end
-  table.sort(files)
-  return files
-end
-
-local function create_standalone_spec(opts)
-  if not file_exists(opts.main) then
-    log("error", "main file not found: " .. opts.main)
-    os.exit(1)
-  end
-
-  local module_files = {}
-  for _, path in ipairs(opts.modules) do
-    for _, f in ipairs(collect_lua_files(path)) do
-      if f.path ~= opts.main then table.insert(module_files, f) end
-    end
-  end
-  table.sort(module_files, function(a, b)
-    return a.path < b.path
-  end)
-
-  local embed_files = collect_embed_files(opts.embeds)
-
-  local name = opts.output or basename(opts.main):gsub("%.lua$", "")
-
-  log("success", "main: " .. opts.main)
-  log("success", "modules: " .. #module_files .. " files")
-  if #opts.clibs > 0 then log("success", "C dependencies: " .. table.concat(opts.clibs, ", ")) end
-  if #embed_files > 0 then log("success", "embedded files: " .. #embed_files) end
-
-  return {
-    name = name,
-    bin = opts.main,
-    modules = module_files,
-    c_deps = opts.clibs,
-    embeds = embed_files,
-  }
+    outfile:close()
+    return outfilename
 end
 
 local function get_local_clibs()
-  local local_clibs = {}
-  for name, info in pairs(CLIB_REGISTRY) do
-    if type(info) == "table" and info.type == "local" then
-      table.insert(local_clibs, name)
+    local local_clibs = {}
+    for name, info in pairs(CLIB_REGISTRY) do
+        if type(info) == "table" and info.type == "local" then table.insert(local_clibs, name) end
     end
-  end
-  table.sort(local_clibs)
-  return local_clibs
+    table.sort(local_clibs)
+    return local_clibs
 end
 
+local function resolve_rocks_to_spec(rocks, trees)
+    local resolved_deps = {}
+    local c_deps = {}
+    local lua_modules = {}
+    local seen_modules = {}
+
+    for _, rock_name in ipairs(rocks) do
+        local deps = resolve_rock_deps(rock_name)
+        for name, info in pairs(deps) do
+            if not resolved_deps[name] then resolved_deps[name] = info end
+        end
+    end
+
+    for name, _ in pairs(resolved_deps) do
+        local clib_info = resolve_clib(name)
+        if clib_info then
+            if not c_deps[name] then
+                c_deps[name] = true
+                c_deps[#c_deps + 1] = name
+            end
+        else
+            local files = get_rock_lua_files(name, trees)
+            for _, f in ipairs(files) do
+                if not seen_modules[f.modname] then
+                    seen_modules[f.modname] = true
+                    lua_modules[#lua_modules + 1] = f
+                end
+            end
+        end
+    end
+
+    return lua_modules, c_deps
+end
+
+-- main --
+
 local function main(args)
-  setup_colors()
-  local opts = parse_args(args)
+    setup_colors()
+    local opts = parse_args(args)
 
-  if log_level > 0 then print(colors.bold .. "lua standalone build" .. colors.reset .. "\n") end
+    if log_level > 0 then print(colors.bold .. "luast - static lua builder" .. colors.reset .. "\n") end
 
-  mkdir(BUILD_DIR)
+    mkdir(BUILD_DIR)
 
-  local spec
-  if opts.main then
-    spec = create_standalone_spec(opts)
-  else
-    local rockspec_path = find_rockspec(opts.rockspec)
-    spec = parse_rockspec(rockspec_path)
-    spec.embeds = collect_embed_files(opts.embeds)
-    if #spec.embeds > 0 then log("success", "embedded files: " .. #spec.embeds) end
-    local added = {}
-    for _, clib in ipairs(opts.clibs) do
-      local found = false
-      for _, existing in ipairs(spec.c_deps) do
-        if existing == clib then
-          found = true
-          break
+    local spec
+    local embed_files = collect_embed_files(opts.embeds)
+
+    if opts.main then
+        if not file_exists(opts.main) then
+            log("error", "main file not found: " .. opts.main)
+            os.exit(1)
         end
-      end
-      if not found then
-        table.insert(spec.c_deps, clib)
-        table.insert(added, clib)
-      end
-    end
-    if #added > 0 then log("success", "extra C dependencies: " .. table.concat(added, ", ")) end
 
-    local local_clibs = get_local_clibs()
-    local local_added = {}
-    for _, clib in ipairs(local_clibs) do
-      local found = false
-      for _, existing in ipairs(spec.c_deps) do
-        if existing == clib then
-          found = true
-          break
+        local module_files = {}
+        for _, path in ipairs(opts.modules) do
+            for _, f in ipairs(collect_lua_files(path)) do
+                if f.path ~= opts.main then table.insert(module_files, f) end
+            end
         end
-      end
-      if not found then
-        table.insert(spec.c_deps, clib)
-        table.insert(local_added, clib)
-      end
+
+        local trees = get_luarocks_trees()
+        local rock_modules = {}
+        local rock_clibs = {}
+
+        if #opts.rocks > 0 then
+            log("info", "resolving rocks: " .. table.concat(opts.rocks, ", "))
+            rock_modules, rock_clibs = resolve_rocks_to_spec(opts.rocks, trees)
+            log("success", "found " .. #rock_modules .. " lua modules from rocks")
+
+            for _, name in ipairs(rock_clibs) do
+                if not list_contains(opts.clibs, name) then table.insert(opts.clibs, name) end
+            end
+        end
+
+        for _, f in ipairs(rock_modules) do
+            table.insert(module_files, f)
+        end
+
+        table.sort(module_files, function(a, b)
+            return (a.modname or a.path) < (b.modname or b.path)
+        end)
+
+        local output_name = opts.output or basename(opts.main):gsub("%.lua$", "")
+
+        log("success", "main: " .. opts.main)
+        log("success", "modules: " .. #module_files .. " files")
+        if #opts.clibs > 0 then log("success", "C dependencies: " .. table.concat(opts.clibs, ", ")) end
+        if #embed_files > 0 then log("success", "embedded files: " .. #embed_files) end
+
+        spec = {
+            name = output_name,
+            bin = opts.main,
+            modules = module_files,
+            c_deps = opts.clibs,
+            embeds = embed_files,
+        }
+    else
+        local rockspec_path = find_local_rockspec(opts.rockspec)
+        if not rockspec_path then
+            log("error", "no rockspec found and no main entry point specified (-m app.lua)")
+            os.exit(1)
+        end
+
+        spec = parse_local_rockspec(rockspec_path)
+        spec.embeds = embed_files
+
+        if #embed_files > 0 then log("success", "embedded files: " .. #embed_files) end
+
+        local added = {}
+        for _, clib in ipairs(opts.clibs) do
+            if not list_contains(spec.c_deps, clib) then
+                table.insert(spec.c_deps, clib)
+                table.insert(added, clib)
+            end
+        end
+        if #added > 0 then log("success", "extra C dependencies: " .. table.concat(added, ", ")) end
+
+        local local_clibs = get_local_clibs()
+        local local_added = {}
+        for _, clib in ipairs(local_clibs) do
+            if not list_contains(spec.c_deps, clib) then
+                table.insert(spec.c_deps, clib)
+                table.insert(local_added, clib)
+            end
+        end
+        if #local_added > 0 then log("success", "local C libraries: " .. table.concat(local_added, ", ")) end
     end
-    if #local_added > 0 then log("success", "local C libraries: " .. table.concat(local_added, ", ")) end
-  end
 
-  local output_name = opts.output or spec.name
+    local output_name = opts.output or spec.name
 
-  if dir_exists("./" .. output_name) then
-    io.stdout:flush()
-    log("error", "'" .. output_name .. "' is a directory, use: luast <output-name>")
-    os.exit(1)
-  end
+    if dir_exists("./" .. output_name) then
+        log("error", "'" .. output_name .. "' is a directory, use: luast <output-name>")
+        os.exit(1)
+    end
 
-  local targets = opts.targets
-  if #targets == 0 then targets = { get_native_target() } end
+    check_system_deps(spec)
 
-  if #targets > 1 then
-    build_targets_parallel(spec, output_name, targets)
-  else
-    build_for_target(spec, output_name, targets[1])
-  end
-  os.exit(0)
+    local targets = opts.targets
+    if #targets == 0 then targets = { get_native_target() } end
+
+    for _, target in ipairs(targets) do
+        local zig_target = TARGET_MAP[target]
+        local runtime_name = IS_LUAJIT and "luajit" or "lua"
+        log("info", "building for " .. target .. " (" .. zig_target .. ") with " .. runtime_name)
+
+        local zig_bin = ensure_zig()
+        local lua_incdir, lua_static_lib
+        if IS_LUAJIT then
+            lua_incdir, lua_static_lib = build_luajit_for_target(zig_bin, zig_target)
+        else
+            lua_incdir, lua_static_lib = build_lua_for_target(zig_bin, zig_target)
+        end
+
+        local module_library_files = {}
+        local extra_libs = {}
+        local seen_ssl = false
+
+        for _, dep in ipairs(spec.c_deps) do
+            local lib_a, info = build_clib_for_target(zig_bin, zig_target, lua_incdir, dep)
+            if lib_a and info then
+                local src_dir = fetch_clib_source(info)
+
+                local lua_modules = nil
+                if info.auto_lua_files then
+                    lua_modules = discover_lua_files(src_dir, nil, info.lua_files_prefix)
+                    for _, lua_file in ipairs(lua_modules) do
+                        local full_path = src_dir .. "/" .. lua_file.path
+                        table.insert(spec.modules, { path = full_path, modname = lua_file.modname })
+                    end
+                    log("info", "discovered " .. #lua_modules .. " lua files in " .. info.name)
+                elseif info.lua_files then
+                    lua_modules = info.lua_files
+                    for _, lua_file in ipairs(lua_modules) do
+                        local full_path = src_dir .. "/" .. lua_file.path
+                        table.insert(spec.modules, { path = full_path, modname = lua_file.modname })
+                    end
+                end
+
+                if info.auto_luaopens then
+                    local discovered = discover_luaopens(lib_a, lua_modules)
+                    for _, entry in ipairs(discovered) do
+                        table.insert(module_library_files, {
+                            path = lib_a,
+                            dotpath_underscore = entry.luaopen,
+                            dotpath_noextension = entry.modname,
+                        })
+                    end
+                    log("info", "discovered " .. #discovered .. " luaopen functions in " .. info.name)
+                elseif info.luaopen then
+                    local modname = info.modname or info.luaopen:gsub("_", ".")
+                    table.insert(module_library_files, {
+                        path = lib_a,
+                        dotpath_underscore = info.luaopen,
+                        dotpath_noextension = modname,
+                    })
+                    if info.extra_luaopens then
+                        for _, extra in ipairs(info.extra_luaopens) do
+                            table.insert(module_library_files, {
+                                path = lib_a,
+                                dotpath_underscore = extra.luaopen,
+                                dotpath_noextension = extra.modname,
+                            })
+                        end
+                    end
+                end
+
+                if info.openssl_libs and not seen_ssl then
+                    seen_ssl = true
+                    table.insert(extra_libs, info.openssl_libs.ssl)
+                    table.insert(extra_libs, info.openssl_libs.crypto)
+                end
+            end
+        end
+
+        local lua_source_files = prepare_sources(spec)
+        log("info", "generating C source with " .. #lua_source_files .. " lua modules")
+
+        local outfilename = generate_c_source(lua_source_files, module_library_files, spec.embeds)
+
+        local cc = string.format('"%s" cc -target %s', zig_bin, zig_target)
+
+        local module_libs = {}
+        local seen_libs = {}
+        for _, lib in ipairs(module_library_files) do
+            if not seen_libs[lib.path] then
+                seen_libs[lib.path] = true
+                table.insert(module_libs, lib.path)
+            end
+        end
+
+        local target_output = output_name .. "-" .. target:gsub("-", "_")
+        if zig_target:match("windows") then target_output = target_output .. ".exe" end
+        local output_path = BUILD_DIR .. "/" .. target_output
+
+        local static_flag = zig_target:match("musl") and "-static" or ""
+        local link_flags = "-lm"
+        if zig_target:match("linux") and not zig_target:match("musl") then link_flags = link_flags .. " -ldl" end
+
+        local extra_libs_str = ""
+        if #extra_libs > 0 then extra_libs_str = table.concat(extra_libs, " ") end
+
+        log("info", "linking " .. #module_library_files .. " C modules")
+
+        local compile_command = table.concat({
+            cc,
+            "-Os",
+            static_flag,
+            outfilename,
+            table.concat(module_libs, " "),
+            extra_libs_str,
+            lua_static_lib,
+            link_flags,
+            "-I" .. lua_incdir,
+            "-o " .. output_path,
+        }, " ")
+
+        if not execute(compile_command) then
+            log("error", "compilation failed for " .. target)
+            os.exit(1)
+        end
+
+        execute(
+            string.format(
+                '"%s" objcopy --strip-all "%s" 2>/dev/null || strip "%s" 2>/dev/null',
+                zig_bin,
+                output_path,
+                output_path
+            )
+        )
+
+        local dst = "./" .. target_output
+        execute(string.format('cp "%s" "%s"', output_path, dst))
+        execute("chmod +x " .. dst .. " 2>/dev/null")
+
+        local size = shellout("du -h " .. dst):match("^%S+") or "?"
+        log("success", "output: " .. dst .. " (" .. size .. ")")
+    end
+
+    log("success", "done!")
+    os.exit(0)
 end
 
 main(arg)
