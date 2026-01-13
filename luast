@@ -270,7 +270,6 @@ local CLIB_REGISTRY = {
         auto_luaopens = true,
         requires_openssl = true,
         requires_m4 = true,
-
         incdirs = { COMPAT_DIR },
         incdirs_relative = { "src", "src/lib", "vendor/compat53/c-api" },
         force_include = COMPAT_DIR .. "/lua_compat.h",
@@ -301,7 +300,6 @@ local CLIB_REGISTRY = {
         },
         preprocess = function(src_dir)
             os.execute(string.format('cp "%s/config.h.guess" "%s/src/config.h"', src_dir, src_dir))
-
             local errno_c = src_dir .. "/src/errno.c"
             local f = io.open(errno_c, "r")
             if not f then
@@ -340,13 +338,11 @@ local CLIB_REGISTRY = {
         name = "compat53",
         url = "https://github.com/lunarmodules/lua-compat-5.3.git",
         type = "git",
-
         sources = {},
         lua_files = {
             { path = "compat53/init.lua", modname = "compat53" },
             { path = "compat53/module.lua", modname = "compat53.module" },
         },
-
         sub_clibs = { "compat53.string", "compat53.table", "compat53.utf8" },
     },
 }
@@ -357,7 +353,7 @@ local function load_luastrc()
     if not f then return end
     f:close()
 
-    local chunk, _ = loadfile(path, "t", {})
+    local chunk = loadfile(path, "t", {})
     if not chunk then return end
 
     local ok, result = pcall(chunk)
@@ -437,65 +433,6 @@ local function basename(path)
     return path:gsub([[(.*[\/])(.*)]], "%2")
 end
 
-local function discover_luaopens(lib_a, lua_modules)
-    local results = {}
-    local handle = io.popen(string.format('nm "%s" 2>/dev/null | grep " T luaopen_"', lib_a))
-    if not handle then return results end
-
-    local expected_c_modules = {}
-    if lua_modules then
-        for _, lua_mod in ipairs(lua_modules) do
-            local c_modname = "_" .. lua_mod.modname
-            local c_symbol = c_modname:gsub("%.", "_")
-            expected_c_modules[c_symbol] = c_modname
-        end
-    end
-
-    for line in handle:lines() do
-        local symbol = line:match("T (luaopen_[%w_]+)")
-        if symbol then
-            local func_name = symbol:sub(9)
-            local modname
-
-            if expected_c_modules[func_name] then
-                modname = expected_c_modules[func_name]
-            elseif func_name:sub(1, 1) == "_" then
-                local base = func_name:match("^(_[^_]+)")
-                local rest = func_name:sub(#base + 1)
-                modname = base .. rest:gsub("_", ".")
-            else
-                modname = func_name:gsub("_", ".")
-            end
-            results[#results + 1] = { luaopen = func_name, modname = modname }
-        end
-    end
-    handle:close()
-    return results
-end
-
-local function discover_lua_files(src_dir, patterns, prefix)
-    patterns = patterns or { "src/*.lua", "src/**/*.lua" }
-    local results = {}
-    local seen = {}
-    for _, pattern in ipairs(patterns) do
-        for _, path in ipairs(glob(src_dir .. "/" .. pattern)) do
-            if not seen[path] then
-                seen[path] = true
-                local relpath = path:sub(#src_dir + 2)
-                local modname = relpath:gsub("^src/", ""):gsub("%.lua$", ""):gsub("/", "."):gsub("%.init$", "")
-                if prefix and modname ~= prefix and not modname:match("^" .. prefix .. "%.") then
-                    modname = prefix .. "." .. modname
-                end
-                results[#results + 1] = { path = relpath, modname = modname }
-            end
-        end
-    end
-    table.sort(results, function(a, b)
-        return a.modname < b.modname
-    end)
-    return results
-end
-
 local function download_file(url, dest)
     return execute(string.format('curl -fsSL "%s" -o "%s" || wget -q "%s" -O "%s"', url, dest, url, dest))
 end
@@ -539,28 +476,6 @@ local function log(level, msg)
     end
 end
 
-local function check_system_deps()
-    local missing = {}
-
-    if not execute("which git >/dev/null 2>&1") then table.insert(missing, "git") end
-    if not execute("which tar >/dev/null 2>&1") then table.insert(missing, "tar") end
-    if not execute("which curl >/dev/null 2>&1 || which wget >/dev/null 2>&1") then
-        table.insert(missing, "curl or wget")
-    end
-
-    if IS_LUAJIT then
-        if not execute("which make >/dev/null 2>&1") then table.insert(missing, "make (required for LuaJIT)") end
-        local has_gcc = execute("which gcc >/dev/null 2>&1")
-        local has_clang = execute("which clang >/dev/null 2>&1")
-        if not has_gcc and not has_clang then table.insert(missing, "gcc or clang (required for LuaJIT)") end
-    end
-
-    if #missing > 0 then
-        log("error", "missing required tools: " .. table.concat(missing, ", "))
-        os.exit(1)
-    end
-end
-
 local function cache_key(...)
     local str = table.concat({ ... }, "|")
     local hash = 5381
@@ -568,6 +483,123 @@ local function cache_key(...)
         hash = ((hash * 33) + str:byte(i)) % 0x100000000
     end
     return string.format("%08x", hash)
+end
+
+local function reindent_c(input)
+    local out = {}
+    local indent = 0
+    local previous_is_blank = true
+
+    for line in input:gmatch("([^\n]*)") do
+        line = line:match("^[ \t]*(.-)[ \t]*$")
+
+        local is_blank = (#line == 0)
+        local do_print = (not is_blank) or (not previous_is_blank and indent == 0)
+
+        if line:match("^[})]") then
+            indent = indent - 1
+            if indent < 0 then indent = 0 end
+        end
+
+        if do_print then
+            table.insert(out, string.rep("   ", indent))
+            table.insert(out, line)
+            table.insert(out, "\n")
+        end
+
+        if line:match("[{(]$") then indent = indent + 1 end
+
+        previous_is_blank = is_blank
+    end
+
+    return table.concat(out)
+end
+
+local numtab = {}
+for i = 0, 255 do
+    numtab[string.char(i)] = ("%-3d,"):format(i)
+end
+
+local function hexdump(str)
+    return (str:gsub(".", numtab):gsub(("."):rep(80), "%0\n"))
+end
+
+local function discover_luaopens(lib_a, src_dir)
+    local results = {}
+
+    local symbols = {}
+    local handle = io.popen(string.format('nm "%s" 2>/dev/null | grep " T luaopen_"', lib_a))
+    if not handle then return results end
+    for line in handle:lines() do
+        local symbol = line:match("T (luaopen_[%w_]+)")
+        if symbol then
+            local func_name = symbol:sub(9)
+            symbols[func_name] = true
+        end
+    end
+    handle:close()
+
+    local required_cmodules = {}
+    if src_dir then
+        local lua_files = glob(src_dir .. "/src/*.lua")
+        for _, path in ipairs(lua_files) do
+            local f = io.open(path, "r")
+            if f then
+                local content = f:read("*a")
+                f:close()
+
+                for mod in content:gmatch("require%s*%(?%s*['\"](_[^'\"]+)['\"]") do
+                    local symbol = mod:gsub("%.", "_")
+                    required_cmodules[symbol] = mod
+                end
+            end
+        end
+    end
+
+    for func_name in pairs(symbols) do
+        local modname
+        if required_cmodules[func_name] then
+            modname = required_cmodules[func_name]
+        elseif func_name:sub(1, 1) == "_" then
+            local prefix, rest = func_name:match("^(_[^_]+)_(.+)$")
+            if prefix and rest then
+                modname = prefix .. "." .. rest:gsub("_", ".")
+            else
+                modname = func_name
+            end
+        else
+            modname = func_name:gsub("_", ".")
+        end
+        table.insert(results, { luaopen = func_name, modname = modname })
+    end
+
+    table.sort(results, function(a, b)
+        return a.modname < b.modname
+    end)
+    return results
+end
+
+local function discover_lua_files(src_dir, patterns, prefix)
+    patterns = patterns or { "src/*.lua", "src/**/*.lua" }
+    local results = {}
+    local seen = {}
+    for _, pattern in ipairs(patterns) do
+        for _, path in ipairs(glob(src_dir .. "/" .. pattern)) do
+            if not seen[path] then
+                seen[path] = true
+                local relpath = path:sub(#src_dir + 2)
+                local modname = relpath:gsub("^src/", ""):gsub("%.lua$", ""):gsub("/", "."):gsub("%.init$", "")
+                if prefix and modname ~= prefix and not modname:match("^" .. prefix .. "%.") then
+                    modname = prefix .. "." .. modname
+                end
+                table.insert(results, { path = relpath, modname = modname })
+            end
+        end
+    end
+    table.sort(results, function(a, b)
+        return a.modname < b.modname
+    end)
+    return results
 end
 
 local function get_luarocks_trees()
@@ -610,10 +642,81 @@ local function install_rock(name)
             return true
         else
             log("warn", "failed to install " .. name .. ": " .. (output or "unknown error"))
-            return false
         end
     end
     return false
+end
+
+local function parse_rockspec(path)
+    local env = {}
+    local chunk, err = loadfile(path, "t", env)
+    if not chunk then return nil, err end
+    chunk()
+    return env
+end
+
+local function get_rock_lua_files(name, trees)
+    local files = {}
+    for _, tree in ipairs(trees) do
+        local patterns = {
+            tree .. "/" .. name .. ".lua",
+            tree .. "/" .. name .. "/*.lua",
+            tree .. "/" .. name .. "/**/*.lua",
+        }
+        for _, pattern in ipairs(patterns) do
+            for _, path in ipairs(glob(pattern)) do
+                local relpath = path:sub(#tree + 2)
+                local modname = relpath:gsub("%.lua$", ""):gsub("/", "."):gsub("%.init$", "")
+                files[#files + 1] = { path = path, modname = modname }
+            end
+        end
+    end
+    return files
+end
+
+local function resolve_clib(name)
+    local info = CLIB_REGISTRY[name:lower()]
+    if type(info) == "string" then info = CLIB_REGISTRY[info] end
+    return info
+end
+
+local function resolve_rock_deps(name, resolved, pending)
+    resolved = resolved or {}
+    pending = pending or {}
+    if resolved[name] or pending[name] then return resolved end
+    pending[name] = true
+
+    local rockspec_path = find_rockspec_installed(name)
+    if not rockspec_path then
+        if install_rock(name) then rockspec_path = find_rockspec_installed(name) end
+        if not rockspec_path then
+            log("warn", "rock not found: " .. name)
+            pending[name] = nil
+            return resolved
+        end
+    end
+
+    local spec = parse_rockspec(rockspec_path)
+    if not spec then
+        pending[name] = nil
+        return resolved
+    end
+
+    if spec.dependencies then
+        for _, dep in ipairs(spec.dependencies) do
+            local dep_name = dep:match("^([%w_%-]+)")
+            if dep_name and dep_name ~= "lua" then resolve_rock_deps(dep_name, resolved, pending) end
+        end
+    end
+
+    resolved[name] = { name = name, rockspec = rockspec_path, spec = spec }
+    pending[name] = nil
+    return resolved
+end
+
+local function parse_dependency(dep_str)
+    local name = dep_str:match("^([%w_-]+)")
+    return name and name:lower() or nil
 end
 
 local function find_local_rockspec(specified)
@@ -628,17 +731,6 @@ local function find_local_rockspec(specified)
     if #files == 0 then return nil end
     log("success", "found rockspec: " .. files[1])
     return files[1]
-end
-
-local function resolve_clib(name)
-    local info = CLIB_REGISTRY[name:lower()]
-    if type(info) == "string" then info = CLIB_REGISTRY[info] end
-    return info
-end
-
-local function parse_dependency(dep_str)
-    local name = dep_str:match("^([%w_-]+)")
-    return name and name:lower() or nil
 end
 
 local function parse_local_rockspec(path)
@@ -707,128 +799,26 @@ local function parse_local_rockspec(path)
     }
 end
 
-local function parse_rockspec(path)
-    local env = {}
-    local chunk, err = loadfile(path, "t", env)
-    if not chunk then return nil, err end
-    chunk()
-    return env
-end
+local function check_system_deps()
+    local missing = {}
 
-local function get_rock_lua_files(name, trees)
-    local files = {}
-    for _, tree in ipairs(trees) do
-        local patterns = {
-            tree .. "/" .. name .. ".lua",
-            tree .. "/" .. name .. "/*.lua",
-            tree .. "/" .. name .. "/**/*.lua",
-        }
-        for _, pattern in ipairs(patterns) do
-            for _, path in ipairs(glob(pattern)) do
-                local relpath = path:sub(#tree + 2)
-                local modname = relpath:gsub("%.lua$", ""):gsub("/", "."):gsub("%.init$", "")
-                files[#files + 1] = { path = path, modname = modname }
-            end
-        end
-    end
-    return files
-end
-
-local function resolve_rock_deps(name, resolved, pending)
-    resolved = resolved or {}
-    pending = pending or {}
-    if resolved[name] or pending[name] then return resolved end
-    pending[name] = true
-
-    local rockspec_path = find_rockspec_installed(name)
-    if not rockspec_path then
-        if install_rock(name) then rockspec_path = find_rockspec_installed(name) end
-        if not rockspec_path then
-            log("warn", "rock not found: " .. name)
-            pending[name] = nil
-            return resolved
-        end
+    if not execute("which git >/dev/null 2>&1") then table.insert(missing, "git") end
+    if not execute("which tar >/dev/null 2>&1") then table.insert(missing, "tar") end
+    if not execute("which curl >/dev/null 2>&1 || which wget >/dev/null 2>&1") then
+        table.insert(missing, "curl or wget")
     end
 
-    local spec = parse_rockspec(rockspec_path)
-    if not spec then
-        pending[name] = nil
-        return resolved
+    if IS_LUAJIT then
+        if not execute("which make >/dev/null 2>&1") then table.insert(missing, "make (required for LuaJIT)") end
+        local has_gcc = execute("which gcc >/dev/null 2>&1")
+        local has_clang = execute("which clang >/dev/null 2>&1")
+        if not has_gcc and not has_clang then table.insert(missing, "gcc or clang (required for LuaJIT)") end
     end
 
-    if spec.dependencies then
-        for _, dep in ipairs(spec.dependencies) do
-            local dep_name = dep:match("^([%w_%-]+)")
-            if dep_name and dep_name ~= "lua" then resolve_rock_deps(dep_name, resolved, pending) end
-        end
+    if #missing > 0 then
+        log("error", "missing required tools: " .. table.concat(missing, ", "))
+        os.exit(1)
     end
-
-    resolved[name] = {
-        name = name,
-        rockspec = rockspec_path,
-        spec = spec,
-    }
-    pending[name] = nil
-    return resolved
-end
-
-local function show_help()
-    print(string.format(
-        [[
-%sluast%s - build static Lua binaries with LuaRocks integration
-
-Build standalone static binaries from LuaRocks projects using Zig.
-Automatically resolves dependencies from installed LuaRocks packages.
-
-Usage: luast [options] [modules...] [output-name]
-
-Arguments:
-    modules...      Lua files or directories to include as modules
-    output-name     Name of output binary (default: <package> or main filename)
-
-Options:
-    -h, --help      Show this help message
-    -q, --quiet     Only show errors and warnings
-    -v, --verbose   Show detailed output
-    -m, --main      Main entry point (standalone mode, no rockspec needed)
-    -c, --clib      C library dependency (can be repeated: -c lfs -c lpeg)
-    -e, --embed     Embed data file/directory (can be repeated: -e assets/)
-    -R, --rock      LuaRocks package to include (can be repeated: -R http)
-    -r, --rockspec  Path to rockspec file (default: auto-detect)
-    -t, --target    Target platform (default: native, can be repeated)
-                    Available: linux-x86_64, linux-arm64
-                               darwin-x86_64, darwin-arm64
-                               windows-x86_64, windows-arm64
-
-Environment:
-    BUILD_DIR       Build directory (default: .build)
-    LUAST_CACHE     Cache directory for zig/lua (default: ~/.cache/luast)
-    LUA_VERSION     Lua version to build (default: 5.4.8, or "jit" for LuaJIT)
-
-Examples:
-    luast myapp
-    luast -t linux-x86_64 -t darwin-arm64 myapp
-    luast -m app.lua -c lfs myapp
-    luast -m app.lua -R inspect myapp
-    luast -m app.lua -R inspect -R penlight myapp
-    LUA_VERSION=jit luast -m app.lua myapp  # Build with LuaJIT
-
-C Libraries (built-in):
-    luafilesystem, lpeg, lua-cjson, lsqlite3complete, luasocket,
-    luasec (with OpenSSL), luaossl (with OpenSSL), cqueues (with OpenSSL)
-
-Config file (.luastrc):
-    Define custom C libraries:
-        return {
-            mylib = {
-                url = "https://github.com/user/mylib.git",
-                sources = { "src/mylib.c" },
-            },
-        }
-]],
-        colors.bold,
-        colors.reset
-    ))
 end
 
 local function get_host_key()
@@ -931,6 +921,27 @@ local function ensure_luajit_source()
     return luajit_dir
 end
 
+local function compile_parallel(commands)
+    if #commands == 0 then return true end
+    if #commands == 1 then return execute(commands[1]) end
+
+    local script = '#!/bin/sh\npids=""\nfailed=0\n'
+    for _, cmd in ipairs(commands) do
+        script = script .. string.format('(%s) &\npids="$pids $!"\n', cmd)
+    end
+    script = script .. "for pid in $pids; do wait $pid || failed=1; done\nexit $failed\n"
+
+    local script_path = string.format("%s/compile_%d.sh", BUILD_DIR, os.time())
+    local f = io.open(script_path, "w")
+    if not f then return false end
+    f:write(script)
+    f:close()
+    execute("chmod +x " .. script_path)
+    local ok = execute(script_path)
+    os.remove(script_path)
+    return ok
+end
+
 local function build_luajit_for_target(zig_bin, zig_target)
     local luajit_src = ensure_luajit_source()
     local target_build_dir = CACHE_DIR .. "/luajit-" .. cache_key("luajit", LUAJIT_VERSION, zig_target)
@@ -987,7 +998,6 @@ local function build_luajit_for_target(zig_bin, zig_target)
 
     if not execute(make_cmd) then
         log("error", "failed to build luajit for " .. zig_target)
-        log("info", "command: " .. make_cmd)
         os.exit(1)
     end
 
@@ -1002,27 +1012,6 @@ local function build_luajit_for_target(zig_bin, zig_target)
 
     log("success", "built libluajit.a for " .. zig_target)
     return target_build_dir, libluajit_a
-end
-
-local function compile_parallel(commands)
-    if #commands == 0 then return true end
-    if #commands == 1 then return execute(commands[1]) end
-
-    local script = '#!/bin/sh\npids=""\nfailed=0\n'
-    for _, cmd in ipairs(commands) do
-        script = script .. string.format('(%s) &\npids="$pids $!"\n', cmd)
-    end
-    script = script .. "for pid in $pids; do wait $pid || failed=1; done\nexit $failed\n"
-
-    local script_path = string.format("%s/compile_%d.sh", BUILD_DIR, os.time())
-    local f = io.open(script_path, "w")
-    if not f then return false end
-    f:write(script)
-    f:close()
-    execute("chmod +x " .. script_path)
-    local ok = execute(script_path)
-    os.remove(script_path)
-    return ok
 end
 
 local function build_lua_for_target(zig_bin, zig_target)
@@ -1250,10 +1239,9 @@ local function fetch_clib_source(info)
     elseif info.type == "local" then
         mkdir(src_dir)
         for _, source in ipairs(info.sources) do
-            local src_file = source
             local dst_file = src_dir .. "/" .. source:match("([^/]+)$")
-            if not execute(string.format('cp "%s" "%s"', src_file, dst_file)) then
-                log("error", "failed to copy " .. src_file)
+            if not execute(string.format('cp "%s" "%s"', source, dst_file)) then
+                log("error", "failed to copy " .. source)
                 os.exit(1)
             end
         end
@@ -1397,6 +1385,451 @@ local function build_clib_for_target(zig_bin, zig_target, lua_incdir, clib_name)
     return lib_a, info
 end
 
+local c_gen = {}
+
+function c_gen.preamble()
+    return [[
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include <lauxlib.h>
+#include <lua.h>
+#include <lualib.h>
+#ifdef __cplusplus
+}
+#endif
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#if LUA_VERSION_NUM == 501
+#define LUA_OK 0
+#endif
+
+static int luast_registry_key;
+static lua_State *globalL = NULL;
+
+static void lstop(lua_State *L, lua_Debug *ar) {
+(void)ar;
+lua_sethook(L, NULL, 0, 0);
+luaL_error(L, "interrupted!");
+}
+
+static void laction(int i) {
+signal(i, SIG_DFL);
+lua_sethook(globalL, lstop, LUA_MASKCALL | LUA_MASKRET | LUA_MASKCOUNT, 1);
+}
+
+static void createargtable(lua_State *L, char **argv, int argc) {
+lua_createtable(L, argc, 1);
+for (int i = 0; i < argc; i++) {
+lua_pushstring(L, argv[i]);
+lua_rawseti(L, -2, i);
+}
+lua_setglobal(L, "arg");
+}
+
+static int msghandler(lua_State *L) {
+const char *msg = lua_tostring(L, 1);
+if (msg == NULL) {
+if (luaL_callmeta(L, 1, "__tostring") && lua_type(L, -1) == LUA_TSTRING)
+return 1;
+msg = lua_pushfstring(L, "(error object is a %s value)", luaL_typename(L, 1));
+}
+luaL_traceback(L, L, msg, 1);
+return 1;
+}
+
+static int docall(lua_State *L, int narg, int nres) {
+int base = lua_gettop(L) - narg;
+lua_pushcfunction(L, msghandler);
+lua_insert(L, base);
+globalL = L;
+signal(SIGINT, laction);
+int status = lua_pcall(L, narg, nres, base);
+signal(SIGINT, SIG_DFL);
+lua_remove(L, base);
+return status;
+}
+
+]]
+end
+
+function c_gen.package_loader()
+    return [[
+/* C-based package loader (inspired by LuaRocks all_in_one) */
+static int luast_loader(lua_State *L) {
+const char *name = luaL_checkstring(L, 1);
+
+/* Get the module table from registry */
+lua_pushlightuserdata(L, (void *)&luast_registry_key);
+lua_rawget(L, LUA_REGISTRYINDEX);
+
+if (lua_type(L, -1) != LUA_TTABLE) {
+lua_pop(L, 1);
+lua_pushfstring(L, "\n\tno luast bundle");
+return 1;
+}
+
+/* Try exact name first */
+lua_getfield(L, -1, name);
+
+/* If not found, try name.init */
+if (lua_type(L, -1) == LUA_TNIL) {
+lua_pop(L, 1);
+lua_pushfstring(L, "%s.init", name);
+lua_gettable(L, -2);
+}
+
+if (lua_type(L, -1) == LUA_TNIL) {
+lua_pop(L, 2);
+lua_pushfstring(L, "\n\tno module '%s' in luast bundle", name);
+return 1;
+}
+
+/* Return the chunk (string) or function */
+lua_remove(L, -2); /* remove module table */
+return 1;
+}
+
+static void install_loader(lua_State *L) {
+lua_getglobal(L, "table");
+lua_getfield(L, -1, "insert");
+lua_getglobal(L, "package");
+#if LUA_VERSION_NUM >= 502
+lua_getfield(L, -1, "searchers");
+#else
+lua_getfield(L, -1, "loaders");
+#endif
+lua_remove(L, -2); /* remove package */
+lua_pushinteger(L, 2);
+lua_pushcfunction(L, luast_loader);
+lua_call(L, 3, 0);
+lua_pop(L, 1); /* remove table */
+}
+
+]]
+end
+
+function c_gen.declare_clib_externs(module_libs)
+    local out = {}
+    table.insert(out, '#ifdef __cplusplus\nextern "C" {\n#endif\n')
+    for _, lib in ipairs(module_libs) do
+        table.insert(out, string.format("int luaopen_%s(lua_State *L);\n", lib.luaopen))
+    end
+    table.insert(out, "#ifdef __cplusplus\n}\n#endif\n\n")
+    return table.concat(out)
+end
+
+function c_gen.declare_libraries(module_libs)
+    local out = {}
+    table.insert(out, "static void declare_libraries(lua_State *L) {\n")
+    table.insert(out, 'lua_getglobal(L, "package");\n')
+    table.insert(out, 'lua_getfield(L, -1, "preload");\n')
+    for _, lib in ipairs(module_libs) do
+        table.insert(out, string.format("lua_pushcfunction(L, luaopen_%s);\n", lib.luaopen))
+        table.insert(out, string.format('lua_setfield(L, -2, "%s");\n', lib.modname))
+    end
+    table.insert(out, "lua_settop(L, 0);\n")
+    table.insert(out, "}\n\n")
+    return table.concat(out)
+end
+
+function c_gen.declare_modules(lua_files)
+    local out = {}
+    table.insert(out, "static void declare_modules(lua_State *L) {\n")
+    table.insert(out, "lua_newtable(L);\n")
+    table.insert(out, "lua_pushlightuserdata(L, (void *)&luast_registry_key);\n")
+    table.insert(out, "lua_pushvalue(L, -2);\n")
+    table.insert(out, "lua_rawset(L, LUA_REGISTRYINDEX);\n\n")
+
+    for i, file in ipairs(lua_files) do
+        local varname = string.format("lua_mod_%d", i)
+        table.insert(out, string.format("/* %s */\n", file.modname))
+        table.insert(out, "{\n")
+        table.insert(out, string.format("static const unsigned char %s[] = {\n", varname))
+        table.insert(out, file.hexdata)
+        table.insert(out, "\n};\n")
+        table.insert(
+            out,
+            string.format(
+                'if (luaL_loadbuffer(L, (const char *)%s, sizeof(%s), "@%s") == LUA_OK) {\n',
+                varname,
+                varname,
+                file.modname
+            )
+        )
+        table.insert(out, string.format('lua_setfield(L, -2, "%s");\n', file.modname))
+        table.insert(out, "}\n")
+        table.insert(out, "}\n\n")
+    end
+
+    table.insert(out, "lua_pop(L, 1);\n")
+    table.insert(out, "}\n\n")
+    return table.concat(out)
+end
+
+function c_gen.declare_embeds(embed_files)
+    if #embed_files == 0 then return "" end
+
+    local out = {}
+    table.insert(out, "static void declare_embeds(lua_State *L) {\n")
+    table.insert(out, "lua_newtable(L);\n")
+
+    for i, file in ipairs(embed_files) do
+        local varname = string.format("embed_%d", i)
+        table.insert(out, string.format("static const unsigned char %s[] = {\n%s\n};\n", varname, file.hexdata))
+        table.insert(out, string.format("lua_pushlstring(L, (const char *)%s, sizeof(%s));\n", varname, varname))
+        table.insert(out, string.format('lua_setfield(L, -2, "%s");\n', file.key))
+    end
+
+    table.insert(out, 'lua_setglobal(L, "__luast_embed_data");\n\n')
+
+    local embed_module = [[
+local embed_data = __luast_embed_data or {}
+local M = {}
+function M.read(path) return embed_data[path] end
+function M.exists(path) return embed_data[path] ~= nil end
+function M.list()
+local files = {}
+for k in pairs(embed_data) do files[#files + 1] = k end
+table.sort(files)
+return files
+end
+return M
+]]
+    table.insert(out, "static const unsigned char embed_module[] = {\n")
+    table.insert(out, hexdump(embed_module))
+    table.insert(out, "\n};\n")
+    table.insert(out, "lua_pushlightuserdata(L, (void *)&luast_registry_key);\n")
+    table.insert(out, "lua_rawget(L, LUA_REGISTRYINDEX);\n")
+    table.insert(
+        out,
+        'if (luaL_loadbuffer(L, (const char *)embed_module, sizeof(embed_module), "@luast.embed") == LUA_OK) {\n'
+    )
+    table.insert(out, 'lua_setfield(L, -2, "luast.embed");\n')
+    table.insert(out, "}\n")
+    table.insert(out, "lua_pop(L, 1);\n")
+    table.insert(out, "}\n\n")
+
+    return table.concat(out)
+end
+
+function c_gen.load_main(main_modname)
+    local out = {}
+    table.insert(out, "static void load_main(lua_State *L) {\n")
+    table.insert(out, "lua_pushlightuserdata(L, (void *)&luast_registry_key);\n")
+    table.insert(out, "lua_rawget(L, LUA_REGISTRYINDEX);\n")
+    table.insert(out, string.format('lua_getfield(L, -1, "%s");\n', main_modname))
+    table.insert(out, "lua_remove(L, -2);\n")
+    table.insert(out, "if (lua_type(L, -1) == LUA_TFUNCTION) {\n")
+    table.insert(out, "return;\n")
+    table.insert(out, "}\n")
+    table.insert(out, string.format("fprintf(stderr, \"luast: failed to load main module '%s'\\n\");\n", main_modname))
+    table.insert(out, "exit(1);\n")
+    table.insert(out, "}\n\n")
+    return table.concat(out)
+end
+
+function c_gen.main_function(has_embeds)
+    local embed_call = has_embeds and "declare_embeds(L);\n" or ""
+    return string.format(
+        [[
+int main(int argc, char *argv[]) {
+lua_State *L = luaL_newstate();
+if (L == NULL) {
+fprintf(stderr, "luast: cannot create Lua state\n");
+return 1;
+}
+luaL_openlibs(L);
+install_loader(L);
+declare_modules(L);
+declare_libraries(L);
+%screateargtable(L, argv, argc);
+load_main(L);
+int status = docall(L, 0, LUA_MULTRET);
+if (status != LUA_OK) {
+const char *msg = lua_tostring(L, -1);
+if (msg) fprintf(stderr, "%%s\n", msg);
+}
+lua_close(L);
+return status ? 1 : 0;
+}
+]],
+        embed_call
+    )
+end
+
+local function read_file_hex(path)
+    local f = io.open(path, "rb")
+    if not f then return nil end
+    local content = f:read("*a")
+    f:close()
+
+    content = content:gsub("^#![^\n]*\n", "")
+
+    content = content:gsub("^\xef\xbb\xbf", "")
+    return hexdump(content)
+end
+
+local function make_source_info(path, base, modname)
+    local info = {}
+    info.path = path
+    info.basename = basename(path)
+    info.basename_noextension = info.basename:match("(.+)%.") or info.basename
+    if modname then
+        info.modname = modname
+    else
+        local relpath = path
+        if base and base ~= "" and path:sub(1, #base) == base then relpath = path:sub(#base + 1) end
+        info.modname = relpath:gsub("^%.%/", ""):gsub("[\\/]", "."):gsub("%.lua$", "")
+    end
+    return info
+end
+
+local function prepare_lua_files(spec)
+    local files = {}
+
+    local main_info = make_source_info(spec.bin)
+    main_info.hexdata = read_file_hex(spec.bin)
+    if not main_info.hexdata then
+        log("error", "cannot read main file: " .. spec.bin)
+        os.exit(1)
+    end
+    table.insert(files, main_info)
+
+    for _, f in ipairs(spec.modules) do
+        local info
+        if type(f) == "table" then
+            info = make_source_info(f.path, f.base, f.modname)
+        else
+            info = make_source_info(f)
+        end
+        info.hexdata = read_file_hex(info.path)
+        if info.hexdata then
+            table.insert(files, info)
+        else
+            log("warn", "cannot read: " .. info.path)
+        end
+    end
+
+    return files
+end
+
+local function prepare_embed_files(paths)
+    local files = {}
+    local seen = {}
+
+    for _, path in ipairs(paths) do
+        path = path:gsub("/+$", "")
+        local to_add = {}
+
+        if file_exists(path) and not dir_exists(path) then
+            table.insert(to_add, path)
+        elseif dir_exists(path) then
+            for _, f in ipairs(glob(path .. "/*")) do
+                if file_exists(f) and not dir_exists(f) then table.insert(to_add, f) end
+            end
+            for _, f in ipairs(glob(path .. "/**/*")) do
+                if file_exists(f) and not dir_exists(f) then table.insert(to_add, f) end
+            end
+        end
+
+        for _, f in ipairs(to_add) do
+            if not seen[f] then
+                seen[f] = true
+                local hex = read_file_hex(f)
+                if hex then
+                    table.insert(files, {
+                        path = f,
+                        key = f:gsub("^%./", ""),
+                        hexdata = hex,
+                    })
+                end
+            end
+        end
+    end
+
+    table.sort(files, function(a, b)
+        return a.key < b.key
+    end)
+    return files
+end
+
+local function generate_c_source(lua_files, module_libs, embed_files, main_modname)
+    local parts = {}
+
+    table.insert(parts, c_gen.preamble())
+    table.insert(parts, c_gen.package_loader())
+    table.insert(parts, c_gen.declare_clib_externs(module_libs))
+    table.insert(parts, c_gen.declare_modules(lua_files))
+    table.insert(parts, c_gen.declare_libraries(module_libs))
+    table.insert(parts, c_gen.declare_embeds(embed_files))
+    table.insert(parts, c_gen.load_main(main_modname))
+    table.insert(parts, c_gen.main_function(#embed_files > 0))
+
+    return reindent_c(table.concat(parts))
+end
+
+local function show_help()
+    print(string.format(
+        [[
+%sluast%s - build static Lua binaries with LuaRocks integration
+
+Build standalone static binaries from LuaRocks projects using Zig.
+Automatically resolves dependencies from installed LuaRocks packages.
+
+Usage: luast [options] [modules...] [output-name]
+
+Arguments:
+    modules...      Lua files or directories to include as modules
+    output-name     Name of output binary (default: <package> or main filename)
+
+Options:
+    -h, --help      Show this help message
+    -q, --quiet     Only show errors and warnings
+    -v, --verbose   Show detailed output
+    -m, --main      Main entry point (standalone mode, no rockspec needed)
+    -c, --clib      C library dependency (can be repeated: -c lfs -c lpeg)
+    -e, --embed     Embed data file/directory (can be repeated: -e assets/)
+    -R, --rock      LuaRocks package to include (can be repeated: -R http)
+    -r, --rockspec  Path to rockspec file (default: auto-detect)
+    -t, --target    Target platform (default: native, can be repeated)
+                    Available: linux-x86_64, linux-arm64
+                               darwin-x86_64, darwin-arm64
+                               windows-x86_64, windows-arm64
+
+Environment:
+    BUILD_DIR       Build directory (default: .build)
+    LUAST_CACHE     Cache directory for zig/lua (default: ~/.cache/luast)
+    LUA_VERSION     Lua version to build (default: 5.4.8, or "jit" for LuaJIT)
+
+Examples:
+    luast myapp
+    luast -t linux-x86_64 -t darwin-arm64 myapp
+    luast -m app.lua -c lfs myapp
+    luast -m app.lua -R inspect myapp
+    LUA_VERSION=jit luast -m app.lua myapp
+
+C Libraries (built-in):
+    luafilesystem, lpeg, lua-cjson, lsqlite3complete, luasocket,
+    luasec (with OpenSSL), luaossl (with OpenSSL), cqueues (with OpenSSL)
+
+Config file (.luastrc):
+    Define custom C libraries:
+        return {
+            mylib = {
+                url = "https://github.com/user/mylib.git",
+                sources = { "src/mylib.c" },
+            },
+        }
+]],
+        colors.bold,
+        colors.reset
+    ))
+end
+
 local function parse_args(args)
     local opts = {
         rockspec = nil,
@@ -1485,365 +1918,6 @@ local function collect_lua_files(path)
     return files
 end
 
-local function collect_embed_files(paths)
-    local files = {}
-    local seen = {}
-    for _, path in ipairs(paths) do
-        path = path:gsub("/+$", "")
-        if file_exists(path) and not dir_exists(path) then
-            if not seen[path] then
-                seen[path] = true
-                table.insert(files, path)
-            end
-        elseif dir_exists(path) then
-            for _, f in ipairs(glob(path .. "/*")) do
-                if file_exists(f) and not dir_exists(f) and not seen[f] then
-                    seen[f] = true
-                    table.insert(files, f)
-                end
-            end
-            for _, f in ipairs(glob(path .. "/**/*")) do
-                if file_exists(f) and not dir_exists(f) and not seen[f] then
-                    seen[f] = true
-                    table.insert(files, f)
-                end
-            end
-        end
-    end
-    table.sort(files)
-    return files
-end
-
-local function string_to_c_hex_literal(characters)
-    local hex = {}
-    for character in characters:gmatch(".") do
-        table.insert(hex, ("0x%02x"):format(string.byte(character)))
-    end
-    return table.concat(hex, ", ")
-end
-
-local function make_source_info(path, base, modname)
-    local info = {}
-    info.path = path
-    info.basename = basename(path)
-    info.basename_noextension = info.basename:match("(.+)%.") or info.basename
-    if modname then
-        info.dotpath = modname .. ".lua"
-        info.dotpath_noextension = modname
-        info.dotpath_underscore = modname:gsub("[.-]", "_")
-    else
-        local relpath = path
-        if base and base ~= "" and path:sub(1, #base) == base then relpath = path:sub(#base + 1) end
-        info.dotpath = relpath:gsub("^%.%/", ""):gsub("[\\/]", ".")
-        info.dotpath_noextension = info.dotpath:match("(.+)%.") or info.dotpath
-        info.dotpath_underscore = info.dotpath_noextension:gsub("[.-]", "_")
-    end
-    return info
-end
-
-local function prepare_sources(spec)
-    local lua_source_files = {}
-    table.insert(lua_source_files, make_source_info(spec.bin))
-    for _, f in ipairs(spec.modules) do
-        if type(f) == "table" then
-            table.insert(lua_source_files, make_source_info(f.path, f.base, f.modname))
-        else
-            table.insert(lua_source_files, make_source_info(f))
-        end
-    end
-    return lua_source_files
-end
-
-local function generate_c_source(lua_source_files, module_library_files, embed_files)
-    local mainlua = lua_source_files[1]
-    local outfilename = BUILD_DIR .. "/" .. basename(mainlua.path):gsub("%.lua$", "") .. ".luastatic.c"
-    local outfile = io.open(outfilename, "w+")
-    if not outfile then
-        log("error", "cannot create file: " .. outfilename)
-        os.exit(1)
-    end
-
-    local function out(...)
-        outfile:write(...)
-    end
-
-    local function outhex(str)
-        outfile:write(string_to_c_hex_literal(str), ", ")
-    end
-
-    local function out_lua_source(file)
-        local f = io.open(file.path, "r")
-        if not f then
-            log("error", "cannot open file: " .. file.path)
-            os.exit(1)
-        end
-        local prefix = f:read(4)
-        if prefix then
-            if prefix:match("\xef\xbb\xbf") then prefix = prefix:sub(4) end
-            if prefix:match("#") then
-                local _ = f:read("*line")
-                prefix = "\n"
-            end
-            out(string_to_c_hex_literal(prefix), ", ")
-        end
-        while true do
-            local strdata = f:read(4096)
-            if strdata then
-                out(string_to_c_hex_literal(strdata), ", ")
-            else
-                break
-            end
-        end
-        f:close()
-    end
-
-    out([[
-#ifdef __cplusplus
-extern "C" {
-#endif
-#include <lauxlib.h>
-#include <lua.h>
-#include <lualib.h>
-#ifdef __cplusplus
-}
-#endif
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#if LUA_VERSION_NUM == 501
-    #define LUA_OK 0
-#endif
-
-static lua_State *globalL = NULL;
-
-static void lstop (lua_State *L, lua_Debug *ar) {
-    (void)ar;
-    lua_sethook(L, NULL, 0, 0);
-    luaL_error(L, "interrupted!");
-}
-
-static void laction (int i) {
-    signal(i, SIG_DFL);
-    lua_sethook(globalL, lstop, LUA_MASKCALL | LUA_MASKRET | LUA_MASKCOUNT, 1);
-}
-
-static void createargtable (lua_State *L, char **argv, int argc, int script) {
-    int i, narg;
-    if (script == argc) script = 0;
-    narg = argc - (script + 1);
-    lua_createtable(L, narg, script + 1);
-    for (i = 0; i < argc; i++) {
-        lua_pushstring(L, argv[i]);
-        lua_rawseti(L, -2, i - script);
-    }
-    lua_setglobal(L, "arg");
-}
-
-static int msghandler (lua_State *L) {
-    const char *msg = lua_tostring(L, 1);
-    if (msg == NULL) {
-        if (luaL_callmeta(L, 1, "__tostring") && lua_type(L, -1) == LUA_TSTRING)
-            return 1;
-        else
-            msg = lua_pushfstring(L, "(error object is a %s value)", luaL_typename(L, 1));
-    }
-    lua_getglobal(L, "debug");
-    lua_getfield(L, -1, "traceback");
-    lua_remove(L, -2);
-    lua_pushstring(L, msg);
-    lua_remove(L, -3);
-    lua_pushinteger(L, 2);
-    lua_call(L, 2, 1);
-    return 1;
-}
-
-static int docall (lua_State *L, int narg, int nres) {
-    int status;
-    int base = lua_gettop(L) - narg;
-    lua_pushcfunction(L, msghandler);
-    lua_insert(L, base);
-    globalL = L;
-    signal(SIGINT, laction);
-    status = lua_pcall(L, narg, nres, base);
-    signal(SIGINT, SIG_DFL);
-    lua_remove(L, base);
-    return status;
-}
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-]])
-
-    for _, library in ipairs(module_library_files) do
-        out(("    int luaopen_%s(lua_State *L);\n"):format(library.dotpath_underscore))
-    end
-
-    out([[
-#ifdef __cplusplus
-}
-#endif
-
-int main(int argc, char *argv[])
-{
-    lua_State *L = luaL_newstate();
-    luaL_openlibs(L);
-    createargtable(L, argv, argc, 0);
-
-    static const unsigned char lua_loader_program[] = {
-        ]])
-
-    outhex([[
-local args = {...}
-local lua_bundle = args[1]
-
-local function load_string(str, name)
-    if _VERSION == "Lua 5.1" then
-        return loadstring(str, name)
-    else
-        return load(str, name)
-    end
-end
-
-local function lua_loader(name)
-    local separator = package.config:sub(1, 1)
-    name = name:gsub(separator, ".")
-    local mod = lua_bundle[name] or lua_bundle[name .. ".init"]
-    if mod then
-        if type(mod) == "string" then
-            local chunk, errstr = load_string(mod, name)
-            if chunk then
-                return chunk
-            else
-                error(
-                    ("error loading module '%s' from luastatic bundle:\n\t%s"):format(name, errstr),
-                    0
-                )
-            end
-        elseif type(mod) == "function" then
-            return mod
-        end
-    else
-        return ("\n\tno module '%s' in luastatic bundle"):format(name)
-    end
-end
-table.insert(package.loaders or package.searchers, 2, lua_loader)
-
-local unpack = unpack or table.unpack
-]])
-
-    outhex(([[
-local func = lua_loader("%s")
-if type(func) == "function" then
-    func(unpack(arg))
-else
-    error(func, 0)
-end
-]]):format(mainlua.dotpath_noextension))
-
-    out(([[
-
-    };
-    if (luaL_loadbuffer(L, (const char*)lua_loader_program, sizeof(lua_loader_program), "%s") != LUA_OK)
-    {
-        fprintf(stderr, "luaL_loadbuffer: %%s\n", lua_tostring(L, -1));
-        lua_close(L);
-        return 1;
-    }
-
-    lua_newtable(L);
-]]):format(mainlua.basename_noextension))
-
-    for i, file in ipairs(lua_source_files) do
-        out(("    static const unsigned char lua_require_%i[] = {\n        "):format(i))
-        out_lua_source(file)
-        out("\n    };\n")
-        out(([[
-    lua_pushlstring(L, (const char*)lua_require_%i, sizeof(lua_require_%i));
-]]):format(i, i))
-        out(('    lua_setfield(L, -2, "%s");\n\n'):format(file.dotpath_noextension))
-    end
-
-    for _, library in ipairs(module_library_files) do
-        out(("    lua_pushcfunction(L, luaopen_%s);\n"):format(library.dotpath_underscore))
-        out(('    lua_setfield(L, -2, "%s");\n\n'):format(library.dotpath_noextension))
-    end
-
-    embed_files = embed_files or {}
-    if #embed_files > 0 then
-        for i, path in ipairs(embed_files) do
-            out(("    static const unsigned char embed_data_%i[] = {\n        "):format(i))
-            local f = io.open(path, "rb")
-            if f then
-                while true do
-                    local data = f:read(4096)
-                    if data then
-                        out(string_to_c_hex_literal(data), ", ")
-                    else
-                        break
-                    end
-                end
-                f:close()
-            end
-            out("\n    };\n")
-        end
-
-        out("    lua_newtable(L);\n")
-        for i, path in ipairs(embed_files) do
-            local key = path:gsub("^%./", "")
-            out(("    lua_pushlstring(L, (const char*)embed_data_%i, sizeof(embed_data_%i));\n"):format(i, i))
-            out(('    lua_setfield(L, -2, "%s");\n'):format(key))
-        end
-        out('    lua_setglobal(L, "__luast_embed_data");\n\n')
-
-        local embed_module = [[
-local embed_data = __luast_embed_data or {}
-local M = {}
-function M.read(path)
-    return embed_data[path]
-end
-function M.exists(path)
-    return embed_data[path] ~= nil
-end
-function M.list()
-    local files = {}
-    for k in pairs(embed_data) do
-        files[#files + 1] = k
-    end
-    table.sort(files)
-    return files
-end
-return M
-]]
-        out("    static const unsigned char luast_embed_module[] = {\n        ")
-        out(string_to_c_hex_literal(embed_module))
-        out("\n    };\n")
-        out("    lua_pushlstring(L, (const char*)luast_embed_module, sizeof(luast_embed_module));\n")
-        out('    lua_setfield(L, -2, "luast.embed");\n\n')
-    end
-
-    out([[
-    if (docall(L, 1, LUA_MULTRET))
-    {
-        const char *errmsg = lua_tostring(L, 1);
-        if (errmsg)
-        {
-            fprintf(stderr, "%s\n", errmsg);
-        }
-        lua_close(L);
-        return 1;
-    }
-    lua_close(L);
-    return 0;
-}
-]])
-
-    outfile:close()
-    return outfilename
-end
-
 local function get_local_clibs()
     local local_clibs = {}
     for name, info in pairs(CLIB_REGISTRY) do
@@ -1866,7 +1940,7 @@ local function resolve_rocks_to_spec(rocks, trees)
         end
     end
 
-    for name, _ in pairs(resolved_deps) do
+    for name in pairs(resolved_deps) do
         local clib_info = resolve_clib(name)
         if clib_info then
             if not c_deps[name] then
@@ -1896,7 +1970,7 @@ local function main(args)
     mkdir(BUILD_DIR)
 
     local spec
-    local embed_files = collect_embed_files(opts.embeds)
+    local embed_files = prepare_embed_files(opts.embeds)
 
     if opts.main then
         if not file_exists(opts.main) then
@@ -2025,9 +2099,10 @@ local function main(args)
             lua_incdir, lua_static_lib = build_lua_for_target(zig_bin, zig_target)
         end
 
-        local module_library_files = {}
+        local module_libs = {}
         local extra_libs = {}
         local seen_ssl = false
+        local seen_lib_paths = {}
 
         local expanded_deps = {}
         local seen_deps = {}
@@ -2045,7 +2120,6 @@ local function main(args)
                             end
                         end
                     end
-
                     if info.sub_clibs then
                         for _, sub in ipairs(info.sub_clibs) do
                             if not seen_deps[sub] then
@@ -2080,29 +2154,31 @@ local function main(args)
                 end
 
                 if lib_a then
+                    if not seen_lib_paths[lib_a] then seen_lib_paths[lib_a] = true end
+
                     if info.auto_luaopens then
-                        local discovered = discover_luaopens(lib_a, lua_modules)
+                        local discovered = discover_luaopens(lib_a, src_dir)
                         for _, entry in ipairs(discovered) do
-                            table.insert(module_library_files, {
+                            table.insert(module_libs, {
                                 path = lib_a,
-                                dotpath_underscore = entry.luaopen,
-                                dotpath_noextension = entry.modname,
+                                luaopen = entry.luaopen,
+                                modname = entry.modname,
                             })
                         end
                         log("info", "discovered " .. #discovered .. " luaopen functions in " .. info.name)
                     elseif info.luaopen then
                         local modname = info.modname or info.luaopen:gsub("_", ".")
-                        table.insert(module_library_files, {
+                        table.insert(module_libs, {
                             path = lib_a,
-                            dotpath_underscore = info.luaopen,
-                            dotpath_noextension = modname,
+                            luaopen = info.luaopen,
+                            modname = modname,
                         })
                         if info.extra_luaopens then
                             for _, extra in ipairs(info.extra_luaopens) do
-                                table.insert(module_library_files, {
+                                table.insert(module_libs, {
                                     path = lib_a,
-                                    dotpath_underscore = extra.luaopen,
-                                    dotpath_noextension = extra.modname,
+                                    luaopen = extra.luaopen,
+                                    modname = extra.modname,
                                 })
                             end
                         end
@@ -2117,22 +2193,30 @@ local function main(args)
             end
         end
 
-        local lua_source_files = prepare_sources(spec)
-        log("info", "generating C source with " .. #lua_source_files .. " lua modules")
+        local lua_files = prepare_lua_files(spec)
+        local main_modname = lua_files[1].modname
+        log("info", "generating C source with " .. #lua_files .. " lua modules")
 
-        local outfilename = generate_c_source(lua_source_files, module_library_files, spec.embeds)
+        local c_source = generate_c_source(lua_files, module_libs, spec.embeds, main_modname)
 
-        local cc = string.format('"%s" cc -target %s', zig_bin, zig_target)
+        local outfilename = BUILD_DIR .. "/" .. basename(spec.bin):gsub("%.lua$", "") .. ".luastatic.c"
+        local outfile = io.open(outfilename, "w")
+        if not outfile then
+            log("error", "cannot create file: " .. outfilename)
+            os.exit(1)
+        end
+        outfile:write(c_source)
+        outfile:close()
 
-        local module_libs = {}
-        local seen_libs = {}
-        for _, lib in ipairs(module_library_files) do
-            if not seen_libs[lib.path] then
-                seen_libs[lib.path] = true
-                table.insert(module_libs, lib.path)
+        local lib_paths = {}
+        for _, lib in ipairs(module_libs) do
+            if not lib_paths[lib.path] then
+                lib_paths[lib.path] = true
+                lib_paths[#lib_paths + 1] = lib.path
             end
         end
 
+        local cc = string.format('"%s" cc -target %s', zig_bin, zig_target)
         local target_output = output_name .. "-" .. target:gsub("-", "_")
         if zig_target:match("windows") then target_output = target_output .. ".exe" end
         local output_path = BUILD_DIR .. "/" .. target_output
@@ -2144,14 +2228,14 @@ local function main(args)
         local extra_libs_str = ""
         if #extra_libs > 0 then extra_libs_str = table.concat(extra_libs, " ") end
 
-        log("info", "linking " .. #module_library_files .. " C modules")
+        log("info", "linking " .. #module_libs .. " C modules")
 
         local compile_command = table.concat({
             cc,
             "-Os",
             static_flag,
             outfilename,
-            table.concat(module_libs, " "),
+            table.concat(lib_paths, " "),
             extra_libs_str,
             lua_static_lib,
             link_flags,

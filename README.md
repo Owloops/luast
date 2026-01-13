@@ -223,7 +223,7 @@ stylua luast        # Format
 
 ## Credits
 
-Based on [luastatic](https://github.com/ers35/luastatic) by ers35. Powered by [Zig](https://ziglang.org/).
+Based on [luastatic](https://github.com/ers35/luastatic) by ers35. C embedding approach inspired by [LuaRocks](https://github.com/luarocks/luarocks) binary builder. Powered by [Zig](https://ziglang.org/).
 
 ## License
 
