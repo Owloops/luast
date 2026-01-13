@@ -50,17 +50,17 @@ runs:
         path: ~/.cache/luast
         key: luast-${{ runner.os }}
 
-    - name: Install Lua (Linux)
+    - name: Install Lua and LuaRocks (Linux)
       if: runner.os == 'Linux'
       shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install -y lua5.4 liblua5.4-dev
+        sudo apt-get install -y lua5.4 liblua5.4-dev luarocks
 
-    - name: Install Lua (macOS)
+    - name: Install Lua and LuaRocks (macOS)
       if: runner.os == 'macOS'
       shell: bash
-      run: brew install lua
+      run: brew install lua luarocks
 
     - name: Build binary
       id: build

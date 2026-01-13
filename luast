@@ -1,7 +1,21 @@
 #!/usr/bin/env lua
 
--- constants --
+local function get_script_dir()
+    local info = debug.getinfo(1, "S")
+    local path = info.source:match("^@(.+)$")
+    if path then
+        local f = io.popen('realpath "' .. path .. '" 2>/dev/null || echo "' .. path .. '"')
+        if f then
+            path = f:read("*l") or path
+            f:close()
+        end
+        return path:match("(.+)/[^/]+$") or "."
+    end
+    return "."
+end
 
+local SCRIPT_DIR = get_script_dir()
+local COMPAT_DIR = SCRIPT_DIR .. "/compat"
 local BUILD_DIR = os.getenv("BUILD_DIR") or ".build"
 local CACHE_DIR = os.getenv("LUAST_CACHE") or (os.getenv("HOME") or os.getenv("USERPROFILE") or ".") .. "/.cache/luast"
 
@@ -233,9 +247,109 @@ local CLIB_REGISTRY = {
     },
     ["_openssl"] = "luaossl",
     openssl = "luaossl",
-}
+    cqueues = {
+        name = "cqueues",
+        url = "https://github.com/wahern/cqueues.git",
+        type = "git",
+        sources = {
+            "src/cqueues.c",
+            "src/socket.c",
+            "src/errno.c",
+            "src/signal.c",
+            "src/thread.c",
+            "src/notify.c",
+            "src/dns.c",
+            "src/lib/socket.c",
+            "src/lib/dns.c",
+            "src/lib/kpoll.c",
+            "src/lib/notify.c",
+            "vendor/compat53/c-api/compat-5.3.c",
+        },
+        luaopen = "_cqueues",
+        modname = "_cqueues",
+        auto_luaopens = true,
+        requires_openssl = true,
+        requires_m4 = true,
 
--- config --
+        incdirs = { COMPAT_DIR },
+        incdirs_relative = { "src", "src/lib", "vendor/compat53/c-api" },
+        force_include = COMPAT_DIR .. "/lua_compat.h",
+        defines = {
+            "COMPAT53_PREFIX=cqueues",
+            "_GNU_SOURCE",
+            "CQUEUES_VERSION=20200726L",
+            "main=_cqueues_disabled_main",
+        },
+        lua_files = {
+            { path = "src/cqueues.lua", modname = "cqueues" },
+            { path = "src/auxlib.lua", modname = "cqueues.auxlib" },
+            { path = "src/condition.lua", modname = "cqueues.condition" },
+            { path = "src/dns.lua", modname = "cqueues.dns" },
+            { path = "src/dns.config.lua", modname = "cqueues.dns.config" },
+            { path = "src/dns.hints.lua", modname = "cqueues.dns.hints" },
+            { path = "src/dns.hosts.lua", modname = "cqueues.dns.hosts" },
+            { path = "src/dns.packet.lua", modname = "cqueues.dns.packet" },
+            { path = "src/dns.record.lua", modname = "cqueues.dns.record" },
+            { path = "src/dns.resolver.lua", modname = "cqueues.dns.resolver" },
+            { path = "src/dns.resolvers.lua", modname = "cqueues.dns.resolvers" },
+            { path = "src/errno.lua", modname = "cqueues.errno" },
+            { path = "src/notify.lua", modname = "cqueues.notify" },
+            { path = "src/promise.lua", modname = "cqueues.promise" },
+            { path = "src/signal.lua", modname = "cqueues.signal" },
+            { path = "src/socket.lua", modname = "cqueues.socket" },
+            { path = "src/thread.lua", modname = "cqueues.thread" },
+        },
+        preprocess = function(src_dir)
+            os.execute(string.format('cp "%s/config.h.guess" "%s/src/config.h"', src_dir, src_dir))
+
+            local errno_c = src_dir .. "/src/errno.c"
+            local f = io.open(errno_c, "r")
+            if not f then
+                os.execute(string.format('cd "%s/src" && m4 errno.c.m4 > errno.c', src_dir))
+            else
+                f:close()
+            end
+        end,
+    },
+    ["_cqueues"] = "cqueues",
+    ["compat53.string"] = {
+        name = "compat53.string",
+        url = "https://github.com/lunarmodules/lua-compat-5.3.git",
+        type = "git",
+        sources = { "lstrlib.c" },
+        luaopen = "compat53_string",
+        modname = "compat53.string",
+    },
+    ["compat53.table"] = {
+        name = "compat53.table",
+        url = "https://github.com/lunarmodules/lua-compat-5.3.git",
+        type = "git",
+        sources = { "ltablib.c" },
+        luaopen = "compat53_table",
+        modname = "compat53.table",
+    },
+    ["compat53.utf8"] = {
+        name = "compat53.utf8",
+        url = "https://github.com/lunarmodules/lua-compat-5.3.git",
+        type = "git",
+        sources = { "lutf8lib.c" },
+        luaopen = "compat53_utf8",
+        modname = "compat53.utf8",
+    },
+    compat53 = {
+        name = "compat53",
+        url = "https://github.com/lunarmodules/lua-compat-5.3.git",
+        type = "git",
+
+        sources = {},
+        lua_files = {
+            { path = "compat53/init.lua", modname = "compat53" },
+            { path = "compat53/module.lua", modname = "compat53.module" },
+        },
+
+        sub_clibs = { "compat53.string", "compat53.table", "compat53.utf8" },
+    },
+}
 
 local function load_luastrc()
     local path = ".luastrc"
@@ -264,8 +378,6 @@ local function load_luastrc()
 end
 
 load_luastrc()
-
--- helpers --
 
 local colors = { red = "", green = "", yellow = "", blue = "", bold = "", reset = "" }
 local log_level = 1
@@ -458,8 +570,6 @@ local function cache_key(...)
     return string.format("%08x", hash)
 end
 
--- luarocks --
-
 local function get_luarocks_trees()
     local trees = {}
     local seen = {}
@@ -486,6 +596,24 @@ local function find_rockspec_installed(name)
         if path and file_exists(path) then return path end
     end
     return nil
+end
+
+local function install_rock(name)
+    log("info", "installing rock: " .. name)
+    local cmd = string.format('luarocks install "%s" 2>&1', name)
+    local handle = io.popen(cmd)
+    if handle then
+        local output = handle:read("*a")
+        local ok = handle:close()
+        if ok then
+            log("success", "installed: " .. name)
+            return true
+        else
+            log("warn", "failed to install " .. name .. ": " .. (output or "unknown error"))
+            return false
+        end
+    end
+    return false
 end
 
 local function find_local_rockspec(specified)
@@ -551,10 +679,17 @@ local function parse_local_rockspec(path)
     table.sort(module_files)
 
     local c_deps = {}
+    local lua_rocks = {}
     if env.dependencies then
         for _, dep in ipairs(env.dependencies) do
             local name = parse_dependency(dep)
-            if name and name ~= "lua" and resolve_clib(name) then table.insert(c_deps, name) end
+            if name and name ~= "lua" then
+                if resolve_clib(name) then
+                    table.insert(c_deps, name)
+                else
+                    table.insert(lua_rocks, name)
+                end
+            end
         end
     end
 
@@ -568,6 +703,7 @@ local function parse_local_rockspec(path)
         bin = bin_script,
         modules = module_files,
         c_deps = c_deps,
+        lua_rocks = lua_rocks,
     }
 end
 
@@ -606,9 +742,12 @@ local function resolve_rock_deps(name, resolved, pending)
 
     local rockspec_path = find_rockspec_installed(name)
     if not rockspec_path then
-        log("warn", "rock not found: " .. name)
-        pending[name] = nil
-        return resolved
+        if install_rock(name) then rockspec_path = find_rockspec_installed(name) end
+        if not rockspec_path then
+            log("warn", "rock not found: " .. name)
+            pending[name] = nil
+            return resolved
+        end
     end
 
     local spec = parse_rockspec(rockspec_path)
@@ -632,8 +771,6 @@ local function resolve_rock_deps(name, resolved, pending)
     pending[name] = nil
     return resolved
 end
-
--- cli --
 
 local function show_help()
     print(string.format(
@@ -678,7 +815,7 @@ Examples:
 
 C Libraries (built-in):
     luafilesystem, lpeg, lua-cjson, lsqlite3complete, luasocket,
-    luasec (with OpenSSL), luaossl (with OpenSSL)
+    luasec (with OpenSSL), luaossl (with OpenSSL), cqueues (with OpenSSL)
 
 Config file (.luastrc):
     Define custom C libraries:
@@ -712,8 +849,6 @@ local function get_native_target()
     end
     return key
 end
-
--- build --
 
 local function ensure_zig()
     local zig_dir = CACHE_DIR .. "/zig-" .. ZIG_VERSION
@@ -807,7 +942,7 @@ local function build_luajit_for_target(zig_bin, zig_target)
     end
 
     log("info", "building luajit for " .. zig_target)
-    -- check_system_deps already validated gcc/clang exist for LuaJIT
+
     local host_cc = execute("which gcc >/dev/null 2>&1") and "gcc" or "clang"
 
     mkdir(target_build_dir)
@@ -816,13 +951,11 @@ local function build_luajit_for_target(zig_bin, zig_target)
     local target_sys = LUAJIT_TARGET_SYS[zig_target] or "Linux"
     local zig_cc = string.format('"%s" cc -target %s', zig_bin, zig_target)
 
-    -- musl/macOS: disable DWARF unwinding (musl lacks libunwind, Zig linker struggles with macOS unwind info)
     local xcflags = ""
     if zig_target:match("musl") or zig_target:match("macos") or zig_target:match("darwin") then
         xcflags = "XCFLAGS+=-DLUAJIT_NO_UNWIND"
     end
 
-    -- macOS requires MACOSX_DEPLOYMENT_TARGET to be set
     local env_export = ""
     if zig_target:match("macos") or zig_target:match("darwin") then
         env_export = "export MACOSX_DEPLOYMENT_TARGET=11.0 && "
@@ -1012,25 +1145,25 @@ local function build_openssl_for_target(zig_bin, zig_target)
         "no-tests",
         "no-apps",
         "no-docs",
-        "no-legacy", -- Remove deprecated algorithms (MD2, MD4, RIPEMD, etc.)
-        "no-engine", -- Remove hardware engine support
-        "no-comp", -- Remove compression (CRIME attack vector)
-        "no-idea", -- Remove IDEA cipher
-        "no-mdc2", -- Remove MDC2
-        "no-rc2", -- Remove RC2
-        "no-rc4", -- Remove RC4 (insecure)
-        "no-rc5", -- Remove RC5
-        "no-bf", -- Remove Blowfish
-        "no-cast", -- Remove CAST
-        "no-camellia", -- Remove Camellia
-        "no-seed", -- Remove SEED
-        "no-whirlpool", -- Remove Whirlpool
-        "no-sm2", -- Remove Chinese SM2
-        "no-sm3", -- Remove Chinese SM3
-        "no-sm4", -- Remove Chinese SM4
-        "no-srp", -- Remove SRP
-        "no-gost", -- Remove GOST (Russian algorithms)
-        "no-dso", -- Remove dynamic shared object support
+        "no-legacy",
+        "no-engine",
+        "no-comp",
+        "no-idea",
+        "no-mdc2",
+        "no-rc2",
+        "no-rc4",
+        "no-rc5",
+        "no-bf",
+        "no-cast",
+        "no-camellia",
+        "no-seed",
+        "no-whirlpool",
+        "no-sm2",
+        "no-sm3",
+        "no-sm4",
+        "no-srp",
+        "no-gost",
+        "no-dso",
     }, " ")
 
     local configure_cmd = string.format(
@@ -1126,8 +1259,6 @@ local function fetch_clib_source(info)
         end
     end
 
-    if info.preprocess then info.preprocess(src_dir) end
-
     return src_dir
 end
 
@@ -1136,6 +1267,15 @@ local function build_clib_for_target(zig_bin, zig_target, lua_incdir, clib_name)
     if not info then
         log("warn", "unknown C library: " .. clib_name .. " (skipping)")
         return nil, nil
+    end
+
+    if not info.sources or #info.sources == 0 then return nil, info end
+
+    if info.requires_m4 then
+        if not execute("which m4 >/dev/null 2>&1") then
+            log("error", "m4 required for " .. clib_name .. " but not found")
+            os.exit(1)
+        end
     end
 
     local openssl_libs = nil
@@ -1167,13 +1307,19 @@ local function build_clib_for_target(zig_bin, zig_target, lua_incdir, clib_name)
 
     local src_dir = fetch_clib_source(info)
 
+    if info.preprocess then info.preprocess(src_dir) end
+
     local cc = string.format('"%s" cc -target %s', zig_bin, zig_target)
     local ar = string.format('"%s" ar', zig_bin)
 
     local define_flags = ""
     if info.defines then
         for _, def in ipairs(info.defines) do
-            define_flags = define_flags .. " -D" .. def
+            if def:find("[%(%)]") then
+                define_flags = define_flags .. string.format(" '-D%s'", def)
+            else
+                define_flags = define_flags .. " -D" .. def
+            end
         end
     end
 
@@ -1214,11 +1360,18 @@ local function build_clib_for_target(zig_bin, zig_target, lua_incdir, clib_name)
             end
         end
         if openssl_libs then incdir_flags = incdir_flags .. string.format(' -I"%s"', openssl_libs.incdir) end
+        local extra_cflags = info.extra_cflags or ""
+        if info.force_include then
+            local fi_path = info.force_include
+            if not fi_path:match("^/") then fi_path = src_dir .. "/" .. fi_path end
+            extra_cflags = extra_cflags .. string.format(' -include "%s"', fi_path)
+        end
         local cmd = string.format(
-            '%s -c -O2 -fPIC %s%s -I"%s" -I"%s" "%s" -o "%s"',
+            '%s -c -O2 -fPIC %s%s %s -I"%s" -I"%s" "%s" -o "%s"',
             cc,
             define_flags,
             incdir_flags,
+            extra_cflags,
             lua_incdir,
             src_dir,
             src_path,
@@ -1360,8 +1513,6 @@ local function collect_embed_files(paths)
     table.sort(files)
     return files
 end
-
--- c source generation --
 
 local function string_to_c_hex_literal(characters)
     local hex = {}
@@ -1736,8 +1887,6 @@ local function resolve_rocks_to_spec(rocks, trees)
     return lua_modules, c_deps
 end
 
--- main --
-
 local function main(args)
     setup_colors()
     local opts = parse_args(args)
@@ -1810,6 +1959,27 @@ local function main(args)
 
         if #embed_files > 0 then log("success", "embedded files: " .. #embed_files) end
 
+        local all_rocks = {}
+        for _, r in ipairs(spec.lua_rocks or {}) do
+            table.insert(all_rocks, r)
+        end
+        for _, r in ipairs(opts.rocks) do
+            if not list_contains(all_rocks, r) then table.insert(all_rocks, r) end
+        end
+
+        if #all_rocks > 0 then
+            local trees = get_luarocks_trees()
+            log("info", "resolving rocks: " .. table.concat(all_rocks, ", "))
+            local rock_modules, rock_clibs = resolve_rocks_to_spec(all_rocks, trees)
+            log("success", "found " .. #rock_modules .. " lua modules from rocks")
+            for _, f in ipairs(rock_modules) do
+                table.insert(spec.modules, f)
+            end
+            for _, name in ipairs(rock_clibs) do
+                if not list_contains(spec.c_deps, name) then table.insert(spec.c_deps, name) end
+            end
+        end
+
         local added = {}
         for _, clib in ipairs(opts.clibs) do
             if not list_contains(spec.c_deps, clib) then
@@ -1866,11 +2036,22 @@ local function main(args)
                 seen_deps[dep] = true
                 table.insert(expanded_deps, dep)
                 local info = resolve_clib(dep)
-                if info and info.requires_clibs then
-                    for _, req in ipairs(info.requires_clibs) do
-                        if not seen_deps[req] then
-                            seen_deps[req] = true
-                            table.insert(expanded_deps, req)
+                if info then
+                    if info.requires_clibs then
+                        for _, req in ipairs(info.requires_clibs) do
+                            if not seen_deps[req] then
+                                seen_deps[req] = true
+                                table.insert(expanded_deps, req)
+                            end
+                        end
+                    end
+
+                    if info.sub_clibs then
+                        for _, sub in ipairs(info.sub_clibs) do
+                            if not seen_deps[sub] then
+                                seen_deps[sub] = true
+                                table.insert(expanded_deps, sub)
+                            end
                         end
                     end
                 end
@@ -1879,7 +2060,7 @@ local function main(args)
 
         for _, dep in ipairs(expanded_deps) do
             local lib_a, info = build_clib_for_target(zig_bin, zig_target, lua_incdir, dep)
-            if lib_a and info then
+            if info then
                 local src_dir = fetch_clib_source(info)
 
                 local lua_modules = nil
@@ -1898,30 +2079,32 @@ local function main(args)
                     end
                 end
 
-                if info.auto_luaopens then
-                    local discovered = discover_luaopens(lib_a, lua_modules)
-                    for _, entry in ipairs(discovered) do
-                        table.insert(module_library_files, {
-                            path = lib_a,
-                            dotpath_underscore = entry.luaopen,
-                            dotpath_noextension = entry.modname,
-                        })
-                    end
-                    log("info", "discovered " .. #discovered .. " luaopen functions in " .. info.name)
-                elseif info.luaopen then
-                    local modname = info.modname or info.luaopen:gsub("_", ".")
-                    table.insert(module_library_files, {
-                        path = lib_a,
-                        dotpath_underscore = info.luaopen,
-                        dotpath_noextension = modname,
-                    })
-                    if info.extra_luaopens then
-                        for _, extra in ipairs(info.extra_luaopens) do
+                if lib_a then
+                    if info.auto_luaopens then
+                        local discovered = discover_luaopens(lib_a, lua_modules)
+                        for _, entry in ipairs(discovered) do
                             table.insert(module_library_files, {
                                 path = lib_a,
-                                dotpath_underscore = extra.luaopen,
-                                dotpath_noextension = extra.modname,
+                                dotpath_underscore = entry.luaopen,
+                                dotpath_noextension = entry.modname,
                             })
+                        end
+                        log("info", "discovered " .. #discovered .. " luaopen functions in " .. info.name)
+                    elseif info.luaopen then
+                        local modname = info.modname or info.luaopen:gsub("_", ".")
+                        table.insert(module_library_files, {
+                            path = lib_a,
+                            dotpath_underscore = info.luaopen,
+                            dotpath_noextension = modname,
+                        })
+                        if info.extra_luaopens then
+                            for _, extra in ipairs(info.extra_luaopens) do
+                                table.insert(module_library_files, {
+                                    path = lib_a,
+                                    dotpath_underscore = extra.luaopen,
+                                    dotpath_noextension = extra.modname,
+                                })
+                            end
                         end
                     end
                 end

@@ -149,6 +149,7 @@ Built-in support:
 | luasocket | TCP/UDP sockets, HTTP client |
 | luasec | SSL/TLS for luasocket (OpenSSL statically linked) |
 | luaossl | OpenSSL bindings (OpenSSL statically linked) |
+| cqueues | Coroutine-based async I/O (requires m4, OpenSSL statically linked) |
 
 OpenSSL is cross-compiled and statically linked with optimized settings: legacy ciphers (RC4, IDEA, Blowfish, etc.), regional algorithms (SM2/3/4, GOST, Camellia, SEED), and unused features (compression, engines) are disabled. TLS 1.0-1.3, DTLS, and all modern ciphers (AES, ChaCha20) remain fully supported.
 
@@ -195,12 +196,16 @@ return {
 - git, tar
 - curl or wget
 
-**For OpenSSL-dependent libraries** (luasec, luaossl):
+**For OpenSSL-dependent libraries** (luasec, luaossl, cqueues):
 
 - Perl modules for OpenSSL's Configure script:
   - Fedora/RHEL: `sudo dnf install perl-FindBin perl-IPC-Cmd perl-File-Compare perl-File-Copy perl-Pod-Html`
   - Debian/Ubuntu: `sudo apt install perl` (modules included by default)
 - OpenSSL headers: `openssl-devel` (Fedora/RHEL) or `libssl-dev` (Debian/Ubuntu)
+
+**For cqueues:**
+
+- m4 macro processor: `m4` (usually pre-installed on Linux/macOS)
 
 **For LuaJIT builds** (`LUA_VERSION=jit luast myapp`):
 
