@@ -1,21 +1,5 @@
 #!/usr/bin/env lua
 
-local function get_script_dir()
-    local info = debug.getinfo(1, "S")
-    local path = info.source:match("^@(.+)$")
-    if path then
-        local f = io.popen('realpath "' .. path .. '" 2>/dev/null || echo "' .. path .. '"')
-        if f then
-            path = f:read("*l") or path
-            f:close()
-        end
-        return path:match("(.+)/[^/]+$") or "."
-    end
-    return "."
-end
-
-local SCRIPT_DIR = get_script_dir()
-local COMPAT_DIR = SCRIPT_DIR .. "/compat"
 local BUILD_DIR = os.getenv("BUILD_DIR") or ".build"
 local CACHE_DIR = os.getenv("LUAST_CACHE") or (os.getenv("HOME") or os.getenv("USERPROFILE") or ".") .. "/.cache/luast"
 
@@ -247,104 +231,6 @@ local CLIB_REGISTRY = {
     },
     ["_openssl"] = "luaossl",
     openssl = "luaossl",
-    cqueues = {
-        name = "cqueues",
-        url = "https://github.com/wahern/cqueues.git",
-        type = "git",
-        sources = {
-            "src/cqueues.c",
-            "src/socket.c",
-            "src/errno.c",
-            "src/signal.c",
-            "src/thread.c",
-            "src/notify.c",
-            "src/dns.c",
-            "src/lib/socket.c",
-            "src/lib/dns.c",
-            "src/lib/kpoll.c",
-            "src/lib/notify.c",
-            "vendor/compat53/c-api/compat-5.3.c",
-        },
-        luaopen = "_cqueues",
-        modname = "_cqueues",
-        auto_luaopens = true,
-        requires_openssl = true,
-        requires_m4 = true,
-        incdirs = { COMPAT_DIR },
-        incdirs_relative = { "src", "src/lib", "vendor/compat53/c-api" },
-        force_include = COMPAT_DIR .. "/lua_compat.h",
-        defines = {
-            "COMPAT53_PREFIX=cqueues",
-            "_GNU_SOURCE",
-            "CQUEUES_VERSION=20200726L",
-            "main=_cqueues_disabled_main",
-        },
-        lua_files = {
-            { path = "src/cqueues.lua", modname = "cqueues" },
-            { path = "src/auxlib.lua", modname = "cqueues.auxlib" },
-            { path = "src/condition.lua", modname = "cqueues.condition" },
-            { path = "src/dns.lua", modname = "cqueues.dns" },
-            { path = "src/dns.config.lua", modname = "cqueues.dns.config" },
-            { path = "src/dns.hints.lua", modname = "cqueues.dns.hints" },
-            { path = "src/dns.hosts.lua", modname = "cqueues.dns.hosts" },
-            { path = "src/dns.packet.lua", modname = "cqueues.dns.packet" },
-            { path = "src/dns.record.lua", modname = "cqueues.dns.record" },
-            { path = "src/dns.resolver.lua", modname = "cqueues.dns.resolver" },
-            { path = "src/dns.resolvers.lua", modname = "cqueues.dns.resolvers" },
-            { path = "src/errno.lua", modname = "cqueues.errno" },
-            { path = "src/notify.lua", modname = "cqueues.notify" },
-            { path = "src/promise.lua", modname = "cqueues.promise" },
-            { path = "src/signal.lua", modname = "cqueues.signal" },
-            { path = "src/socket.lua", modname = "cqueues.socket" },
-            { path = "src/thread.lua", modname = "cqueues.thread" },
-        },
-        preprocess = function(src_dir)
-            os.execute(string.format('cp "%s/config.h.guess" "%s/src/config.h"', src_dir, src_dir))
-            local errno_c = src_dir .. "/src/errno.c"
-            local f = io.open(errno_c, "r")
-            if not f then
-                os.execute(string.format('cd "%s/src" && m4 errno.c.m4 > errno.c', src_dir))
-            else
-                f:close()
-            end
-        end,
-    },
-    ["_cqueues"] = "cqueues",
-    ["compat53.string"] = {
-        name = "compat53.string",
-        url = "https://github.com/lunarmodules/lua-compat-5.3.git",
-        type = "git",
-        sources = { "lstrlib.c" },
-        luaopen = "compat53_string",
-        modname = "compat53.string",
-    },
-    ["compat53.table"] = {
-        name = "compat53.table",
-        url = "https://github.com/lunarmodules/lua-compat-5.3.git",
-        type = "git",
-        sources = { "ltablib.c" },
-        luaopen = "compat53_table",
-        modname = "compat53.table",
-    },
-    ["compat53.utf8"] = {
-        name = "compat53.utf8",
-        url = "https://github.com/lunarmodules/lua-compat-5.3.git",
-        type = "git",
-        sources = { "lutf8lib.c" },
-        luaopen = "compat53_utf8",
-        modname = "compat53.utf8",
-    },
-    compat53 = {
-        name = "compat53",
-        url = "https://github.com/lunarmodules/lua-compat-5.3.git",
-        type = "git",
-        sources = {},
-        lua_files = {
-            { path = "compat53/init.lua", modname = "compat53" },
-            { path = "compat53/module.lua", modname = "compat53.module" },
-        },
-        sub_clibs = { "compat53.string", "compat53.table", "compat53.utf8" },
-    },
 }
 
 local function load_luastrc()
@@ -1826,7 +1712,7 @@ Examples:
 
 C Libraries (built-in):
     luafilesystem, lpeg, lua-cjson, lsqlite3complete, luasocket,
-    luasec (with OpenSSL), luaossl (with OpenSSL), cqueues (with OpenSSL)
+    luasec (with OpenSSL), luaossl (with OpenSSL)
 
 Config file (.luastrc):
     Define custom C libraries:
