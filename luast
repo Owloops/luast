@@ -649,7 +649,13 @@ end
 
 local function parse_rockspec(path)
     local env = {}
-    local chunk, err = loadfile(path, "t", env)
+    local chunk, err
+    if setfenv then
+        chunk, err = loadfile(path)
+        if chunk then setfenv(chunk, env) end
+    else
+        chunk, err = loadfile(path, "t", env)
+    end
     if not chunk then return nil, err end
     chunk()
     return env
@@ -736,9 +742,15 @@ end
 local function parse_local_rockspec(path)
     log("info", "parsing rockspec")
     local env = {}
-    local chunk, err = loadfile(path, "t", env)
+    local chunk, err
+    if setfenv then
+        chunk, err = loadfile(path)
+        if chunk then setfenv(chunk, env) end
+    else
+        chunk, err = loadfile(path, "t", env)
+    end
     if not chunk then
-        log("error", "failed to load rockspec: " .. err)
+        log("error", "failed to load rockspec: " .. tostring(err))
         os.exit(1)
     end
     chunk()
