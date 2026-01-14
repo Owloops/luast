@@ -231,6 +231,15 @@ local CLIB_REGISTRY = {
     },
     ["_openssl"] = "luaossl",
     openssl = "luaossl",
+    bcrypt = {
+        name = "bcrypt",
+        url = "https://github.com/mikejsavage/lua-bcrypt.git",
+        tag = "v2.3-1",
+        type = "git",
+        sources = { "src/main.c", "src/bcrypt.c", "src/blowfish.c", "src/ggentropy.c", "src/safebfuns.c" },
+        luaopen = "bcrypt",
+    },
+    ["lua-bcrypt"] = "bcrypt",
 }
 
 local function load_luastrc()
