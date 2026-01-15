@@ -2140,6 +2140,55 @@ local function main(args)
     if #targets == 0 then targets = { get_native_target() } end
 
     local zig_bin = ensure_zig()
+
+    local expanded_deps = {}
+    local seen_deps = {}
+    for _, dep in ipairs(spec.c_deps) do
+        if not seen_deps[dep] then
+            seen_deps[dep] = true
+            table.insert(expanded_deps, dep)
+            local info = resolve_clib(dep)
+            if info then
+                if info.requires_clibs then
+                    for _, req in ipairs(info.requires_clibs) do
+                        if not seen_deps[req] then
+                            seen_deps[req] = true
+                            table.insert(expanded_deps, req)
+                        end
+                    end
+                end
+                if info.sub_clibs then
+                    for _, sub in ipairs(info.sub_clibs) do
+                        if not seen_deps[sub] then
+                            seen_deps[sub] = true
+                            table.insert(expanded_deps, sub)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    for _, dep in ipairs(expanded_deps) do
+        local info = resolve_clib(dep)
+        if info then
+            local src_dir = fetch_clib_source(info)
+            if info.auto_lua_files then
+                local lua_modules = discover_lua_files(src_dir, nil, info.lua_files_prefix)
+                for _, lua_file in ipairs(lua_modules) do
+                    local full_path = src_dir .. "/" .. lua_file.path
+                    table.insert(spec.modules, { path = full_path, modname = lua_file.modname })
+                end
+                log("info", "discovered " .. #lua_modules .. " lua files in " .. info.name)
+            elseif info.lua_files then
+                for _, lua_file in ipairs(info.lua_files) do
+                    local full_path = src_dir .. "/" .. lua_file.path
+                    table.insert(spec.modules, { path = full_path, modname = lua_file.modname })
+                end
+            end
+        end
+    end
+
     native_lua_bin = build_native_lua()
     if native_lua_bin then log("info", "using bytecode compilation") end
 
@@ -2163,54 +2212,10 @@ local function main(args)
         local seen_ssl = false
         local seen_lib_paths = {}
 
-        local expanded_deps = {}
-        local seen_deps = {}
-        for _, dep in ipairs(spec.c_deps) do
-            if not seen_deps[dep] then
-                seen_deps[dep] = true
-                table.insert(expanded_deps, dep)
-                local info = resolve_clib(dep)
-                if info then
-                    if info.requires_clibs then
-                        for _, req in ipairs(info.requires_clibs) do
-                            if not seen_deps[req] then
-                                seen_deps[req] = true
-                                table.insert(expanded_deps, req)
-                            end
-                        end
-                    end
-                    if info.sub_clibs then
-                        for _, sub in ipairs(info.sub_clibs) do
-                            if not seen_deps[sub] then
-                                seen_deps[sub] = true
-                                table.insert(expanded_deps, sub)
-                            end
-                        end
-                    end
-                end
-            end
-        end
-
         for _, dep in ipairs(expanded_deps) do
             local lib_a, info = build_clib_for_target(zig_bin, zig_target, lua_incdir, dep)
             if info then
                 local src_dir = fetch_clib_source(info)
-
-                local lua_modules = nil
-                if info.auto_lua_files then
-                    lua_modules = discover_lua_files(src_dir, nil, info.lua_files_prefix)
-                    for _, lua_file in ipairs(lua_modules) do
-                        local full_path = src_dir .. "/" .. lua_file.path
-                        table.insert(spec.modules, { path = full_path, modname = lua_file.modname })
-                    end
-                    log("info", "discovered " .. #lua_modules .. " lua files in " .. info.name)
-                elseif info.lua_files then
-                    lua_modules = info.lua_files
-                    for _, lua_file in ipairs(lua_modules) do
-                        local full_path = src_dir .. "/" .. lua_file.path
-                        table.insert(spec.modules, { path = full_path, modname = lua_file.modname })
-                    end
-                end
 
                 if lib_a then
                     if not seen_lib_paths[lib_a] then seen_lib_paths[lib_a] = true end
