@@ -334,7 +334,7 @@ local function mkdir(path)
 end
 
 local function glob(pattern)
-    local handle = io.popen("ls -1 " .. pattern .. " 2>/dev/null")
+    local handle = io.popen("ls -1 -d " .. pattern .. " 2>/dev/null")
     if not handle then return {} end
     local files = {}
     for line in handle:lines() do
@@ -620,7 +620,7 @@ local function resolve_rock_deps(name, resolved, pending)
         end
     end
 
-    local spec = parse_rockspec(rockspec_path)
+    local spec = parse_rockspec(rockspec_path, true)
     if not spec then
         pending[name] = nil
         return resolved
@@ -992,7 +992,7 @@ local function compile_parallel(commands)
     end
     script = script .. "for pid in $pids; do wait $pid || failed=1; done\nexit $failed\n"
 
-    local script_path = string.format("%s/compile_%d.sh", BUILD_DIR, os.time())
+    local script_path = os.tmpname() .. ".sh"
     local f = io.open(script_path, "w")
     if not f then return false end
     f:write(script)
@@ -2300,11 +2300,12 @@ local function main(args)
         outfile:close()
 
         local lib_paths = {}
+        local lib_paths_seen = {}
         local lib_path_to_clib = {}
         for _, lib in ipairs(module_libs) do
-            if not lib_paths[lib.path] then
-                lib_paths[lib.path] = true
-                lib_paths[#lib_paths + 1] = lib.path
+            if not lib_paths_seen[lib.path] then
+                lib_paths_seen[lib.path] = true
+                table.insert(lib_paths, lib.path)
                 lib_path_to_clib[lib.path] = lib.clib_name
             end
         end
