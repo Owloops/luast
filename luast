@@ -562,7 +562,7 @@ local function install_rock(name)
     return false
 end
 
-local function parse_rockspec(path)
+local function parse_rockspec(path, silent)
     local env = {}
     local chunk, err
     if setfenv then
@@ -571,7 +571,10 @@ local function parse_rockspec(path)
     else
         chunk, err = loadfile(path, "t", env)
     end
-    if not chunk then return nil, err end
+    if not chunk then
+        if not silent then log("error", "failed to load rockspec: " .. tostring(err)) end
+        return nil, err
+    end
     chunk()
     return env
 end
@@ -656,19 +659,8 @@ end
 
 local function parse_local_rockspec(path)
     log("info", "parsing rockspec")
-    local env = {}
-    local chunk, err
-    if setfenv then
-        chunk, err = loadfile(path)
-        if chunk then setfenv(chunk, env) end
-    else
-        chunk, err = loadfile(path, "t", env)
-    end
-    if not chunk then
-        log("error", "failed to load rockspec: " .. tostring(err))
-        os.exit(1)
-    end
-    chunk()
+    local env, err = parse_rockspec(path)
+    if not env then os.exit(1) end
 
     local package_name = env.package
     if not package_name then
@@ -773,6 +765,10 @@ local function get_native_target()
     return key
 end
 
+local function get_host_target()
+    return TARGET_MAP[get_native_target()]
+end
+
 local function ensure_zig()
     local zig_dir = CACHE_DIR .. "/zig-" .. ZIG_VERSION
     local zig_bin = zig_dir .. "/zig"
@@ -856,15 +852,6 @@ end
 
 local native_lua_bin = nil
 
-local function get_host_target()
-    local uname = io.popen("uname -s"):read("*l") or "Linux"
-    local arch = io.popen("uname -m"):read("*l") or "x86_64"
-
-    if uname == "Darwin" then return arch == "arm64" and "aarch64-macos" or "x86_64-macos" end
-
-    return arch == "aarch64" and "aarch64-linux-musl" or "x86_64-linux-musl"
-end
-
 local function build_native_lua()
     local host_target = get_host_target()
 
@@ -913,7 +900,7 @@ local function build_native_lua()
     mkdir(build_dir)
     execute(string.format('cp -r "%s/src/"*.c "%s/src/"*.h "%s/"', lua_src, lua_src, build_dir))
 
-    local uname = io.popen("uname -s"):read("*l") or "Linux"
+    local uname = shellout("uname -s")
     local cc = "cc"
     local defines = "-DLUA_USE_POSIX -DLUA_USE_DLOPEN"
     local libs = "-lm -ldl"
@@ -1268,7 +1255,8 @@ local function fetch_clib_source(info)
     log("info", "fetching " .. info.name)
 
     if info.type == "git" then
-        if not execute("git clone --quiet --depth 1 " .. info.url .. " " .. src_dir) then
+        local branch_opt = info.tag and (" --branch " .. info.tag) or ""
+        if not execute("git clone --quiet --depth 1" .. branch_opt .. " " .. info.url .. " " .. src_dir) then
             log("error", "failed to clone " .. info.name)
             os.exit(1)
         end
@@ -2250,7 +2238,6 @@ local function main(args)
         local module_libs = {}
         local extra_libs = {}
         local seen_ssl = false
-        local seen_lib_paths = {}
 
         for _, dep in ipairs(expanded_deps) do
             local lib_a, info = build_clib_for_target(zig_bin, zig_target, lua_incdir, dep)
@@ -2258,8 +2245,6 @@ local function main(args)
                 local src_dir = fetch_clib_source(info)
 
                 if lib_a then
-                    if not seen_lib_paths[lib_a] then seen_lib_paths[lib_a] = true end
-
                     if info.auto_luaopens then
                         local discovered = discover_luaopens(lib_a, src_dir)
                         for _, entry in ipairs(discovered) do
