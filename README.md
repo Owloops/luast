@@ -149,6 +149,7 @@ Built-in support:
 | luasocket | TCP/UDP sockets, HTTP client |
 | luasec | SSL/TLS for luasocket (OpenSSL statically linked) |
 | luaossl | OpenSSL bindings (OpenSSL statically linked) |
+| mote | HTTP server with routing and middleware |
 
 OpenSSL is cross-compiled and statically linked with optimized settings: legacy ciphers (RC4, IDEA, Blowfish, etc.), regional algorithms (SM2/3/4, GOST, Camellia, SEED), and unused features (compression, engines) are disabled. TLS 1.0-1.3, DTLS, and all modern ciphers (AES, ChaCha20) remain fully supported.
 
@@ -164,6 +165,30 @@ return {
     },
 }
 ```
+
+For rocks with multiple C modules, define each module separately and use `requires_clibs` to group them:
+
+```lua
+return {
+    ["mylib.crypto_c"] = {
+        url = "https://github.com/user/mylib.git",
+        sources = { "src/crypto.c" },
+        luaopen = "mylib_crypto_c",
+        modname = "mylib.crypto_c",
+    },
+    ["mylib.native_c"] = {
+        url = "https://github.com/user/mylib.git",
+        sources = { "src/native.c" },
+        luaopen = "mylib_native_c",
+        modname = "mylib.native_c",
+    },
+    mylib = {
+        requires_clibs = { "mylib.crypto_c", "mylib.native_c" },
+    },
+}
+```
+
+When `mylib` is detected as a dependency, luast will automatically include its C libraries and Lua files from the installed rock.
 
 ## GitHub Action
 

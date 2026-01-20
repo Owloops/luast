@@ -240,6 +240,26 @@ local CLIB_REGISTRY = {
         luaopen = "bcrypt",
     },
     ["lua-bcrypt"] = "bcrypt",
+    ["mote.crypto_c"] = {
+        name = "mote_crypto",
+        url = "https://github.com/luanvil/mote.git",
+        type = "git",
+        sources = { "mote/crypto/hashings.c", "mote/crypto/sha256.c", "mote/crypto/hmac_sha256.c" },
+        incdirs = { "mote/crypto" },
+        luaopen = "mote_crypto_c",
+        modname = "mote.crypto_c",
+    },
+    ["mote.poll_c"] = {
+        name = "mote_poll",
+        url = "https://github.com/luanvil/mote.git",
+        type = "git",
+        sources = { "mote/poll.c" },
+        luaopen = "mote_poll_c",
+        modname = "mote.poll_c",
+    },
+    mote = {
+        requires_clibs = { "mote.crypto_c", "mote.poll_c" },
+    },
 }
 
 local function load_luastrc()
@@ -683,8 +703,14 @@ local function parse_local_rockspec(path)
         for _, dep in ipairs(env.dependencies) do
             local name = parse_dependency(dep)
             if name and name ~= "lua" then
-                if resolve_clib(name) then
+                local clib_info = resolve_clib(name)
+                if clib_info and clib_info.sources then
                     table.insert(c_deps, name)
+                elseif clib_info and clib_info.requires_clibs then
+                    for _, req in ipairs(clib_info.requires_clibs) do
+                        table.insert(c_deps, req)
+                    end
+                    table.insert(lua_rocks, name)
                 else
                     table.insert(lua_rocks, name)
                 end
@@ -1995,10 +2021,24 @@ local function resolve_rocks_to_spec(rocks, trees)
 
     for name in pairs(resolved_deps) do
         local clib_info = resolve_clib(name)
-        if clib_info then
+        if clib_info and clib_info.sources then
             if not c_deps[name] then
                 c_deps[name] = true
                 c_deps[#c_deps + 1] = name
+            end
+        elseif clib_info and clib_info.requires_clibs then
+            for _, req in ipairs(clib_info.requires_clibs) do
+                if not c_deps[req] then
+                    c_deps[req] = true
+                    c_deps[#c_deps + 1] = req
+                end
+            end
+            local files = get_rock_lua_files(name, trees)
+            for _, f in ipairs(files) do
+                if not seen_modules[f.modname] then
+                    seen_modules[f.modname] = true
+                    lua_modules[#lua_modules + 1] = f
+                end
             end
         else
             local files = get_rock_lua_files(name, trees)
@@ -2171,7 +2211,7 @@ local function main(args)
 
     for _, dep in ipairs(expanded_deps) do
         local info = resolve_clib(dep)
-        if info then
+        if info and info.sources then
             local src_dir = fetch_clib_source(info)
             if info.auto_lua_files then
                 local lua_modules = discover_lua_files(src_dir, nil, info.lua_files_prefix)
@@ -2214,7 +2254,7 @@ local function main(args)
 
         for _, dep in ipairs(expanded_deps) do
             local lib_a, info = build_clib_for_target(zig_bin, zig_target, lua_incdir, dep)
-            if info then
+            if info and info.sources then
                 local src_dir = fetch_clib_source(info)
 
                 if lib_a then
