@@ -193,7 +193,7 @@ When `mylib` is detected as a dependency, luast will automatically include its C
 ## GitHub Action
 
 ```yaml
-- uses: owloops/luast@main
+- uses: luanvil/luast@main
   with:
     output: myapp
     targets: linux-x86_64 linux-arm64 darwin-arm64 windows-x86_64
