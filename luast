@@ -2267,6 +2267,7 @@ local function main(args)
                                 path = lib_a,
                                 luaopen = entry.luaopen,
                                 modname = entry.modname,
+                                clib_name = dep,
                             })
                         end
                         log("info", "discovered " .. #discovered .. " luaopen functions in " .. info.name)
@@ -2276,6 +2277,7 @@ local function main(args)
                             path = lib_a,
                             luaopen = info.luaopen,
                             modname = modname,
+                            clib_name = dep,
                         })
                         if info.extra_luaopens then
                             for _, extra in ipairs(info.extra_luaopens) do
@@ -2283,6 +2285,7 @@ local function main(args)
                                     path = lib_a,
                                     luaopen = extra.luaopen,
                                     modname = extra.modname,
+                                    clib_name = dep,
                                 })
                             end
                         end
@@ -2312,12 +2315,33 @@ local function main(args)
         outfile:close()
 
         local lib_paths = {}
+        local lib_path_to_clib = {}
         for _, lib in ipairs(module_libs) do
             if not lib_paths[lib.path] then
                 lib_paths[lib.path] = true
                 lib_paths[#lib_paths + 1] = lib.path
+                lib_path_to_clib[lib.path] = lib.clib_name
             end
         end
+
+        local clib_link_deps = {
+            luasec = { "luasocket" },
+        }
+        table.sort(lib_paths, function(a, b)
+            local clib_a = lib_path_to_clib[a]
+            local clib_b = lib_path_to_clib[b]
+            if clib_a and clib_b and clib_link_deps[clib_a] then
+                for _, req in ipairs(clib_link_deps[clib_a]) do
+                    if req == clib_b then return true end
+                end
+            end
+            if clib_a and clib_b and clib_link_deps[clib_b] then
+                for _, req in ipairs(clib_link_deps[clib_b]) do
+                    if req == clib_a then return false end
+                end
+            end
+            return false
+        end)
 
         local cc = string.format('"%s" cc -target %s', zig_bin, zig_target)
         local target_output = output_name .. "-" .. target:gsub("-", "_")
